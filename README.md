@@ -16,7 +16,7 @@
 | 성향 리포트 | 12개 축 점수와 LLM이 생성한 설명 문장 제공 |
 | 웹 푸시 | 구독 정보 저장, "오늘의 카드" 알림 발송 |
 
-로그인은 프론트에서 Supabase Auth(익명 로그인)로 처리하고, 백엔드는 요청에 담긴 Supabase JWT만 검증한다.
+회원가입·로그인은 프론트에서 Supabase Auth로 처리하고, 백엔드는 요청에 담긴 Supabase JWT를 검증한다. 가입 후 입력받는 사용자 정보(프로필)는 백엔드가 `profiles` 테이블에 저장한다.
 
 ## 2. 기술 스택
 
@@ -24,7 +24,7 @@
 |---|---|
 | 프레임워크 | FastAPI, Pydantic |
 | 추천 계산 | NumPy |
-| DB · 인증 | Supabase (Postgres, 익명 로그인) |
+| DB · 인증 | Supabase (Postgres, Auth) |
 | LLM | Gemini API (Flash) |
 | 콘텐츠 원천 | 커리어넷 Open API (직업백과) |
 | 웹 푸시 | pywebpush |
@@ -35,7 +35,7 @@
 ```mermaid
 flowchart LR
   FE[Frontend] -- Supabase JWT --> API[FastAPI]
-  FE -- 익명 로그인 --> AUTH[Supabase Auth]
+  FE -- 회원가입 · 로그인 --> AUTH[Supabase Auth]
   API --> REC[추천 로직<br/>NumPy]
   API --> DB[(Supabase Postgres<br/>사용자 · 노출 · 반응)]
   API --> LLM[Gemini API<br/>리포트 · 추천 이유]
@@ -91,7 +91,9 @@ flowchart LR
 | GET | `/health` | 헬스 체크 |
 | GET | `/feed` | 다음에 보여줄 카드 목록 |
 | POST | `/reactions` | 카드 반응 저장 + 성향 갱신 |
+| POST | `/me` | 가입 후 프로필(사용자 정보) 등록 |
 | GET | `/me` | 내 프로필과 현재 성향 |
+| PATCH | `/me` | 프로필 수정 |
 | GET | `/me/report` | 성향 리포트 |
 | POST | `/push/subscribe` | 웹 푸시 구독 등록 |
 
