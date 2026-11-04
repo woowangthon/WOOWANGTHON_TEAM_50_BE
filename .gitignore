@@ -1,0 +1,22 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# node
+node_modules/
+dist/
+.vite/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
