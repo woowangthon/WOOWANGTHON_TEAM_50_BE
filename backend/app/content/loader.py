@@ -32,7 +32,7 @@ class ContentStore:
         return self.option_vectors.get(option_id)
 
 
-def _scale(v: list[int]) -> np.ndarray:
+def scale_attrs(v: list[int]) -> np.ndarray:
     """0~3 정수 → 0~1 실수."""
     return np.asarray(v, dtype=np.float32) / 3.0
 
@@ -73,8 +73,8 @@ def load_content(data_dir: Path = DATA_DIR, reviewed_only: bool = False) -> Cont
     if not cards:
         raise ValueError("사용 가능한 카드가 없음 (reviewed_only 설정 확인)")
 
-    matrix = _l2(np.stack([_scale(c.attrs) for c in cards]))
-    options = {o.id: _scale(o.attrs) for c in cards for o in c.options}
+    matrix = _l2(np.stack([scale_attrs(c.attrs) for c in cards]))
+    options = {o.id: scale_attrs(o.attrs) for c in cards for o in c.options}
 
     return ContentStore(
         attributes=attributes,
