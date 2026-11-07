@@ -38,6 +38,7 @@ class Attribute(BaseModel):
 class Job(BaseModel):
     id: int                                   # 커리어넷 직업코드
     name: str
+    field: str | None = None                  # 커리어넷 대분류 (콜드 스타트 분야별 샘플링용)
     summary: str | None = None
     majors: list[str] = []
 
