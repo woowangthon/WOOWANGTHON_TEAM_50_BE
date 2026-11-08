@@ -6,16 +6,21 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from app.content import Card, load_content
+from app.content import N_DIM, Card, load_content
 
 DATA = Path(__file__).resolve().parents[1] / "data"
+
+
+def v(*xs: int) -> list[int]:
+    """앞쪽 축 점수만 적고 나머지는 0으로 채운 벡터."""
+    return list(xs) + [0] * (N_DIM - len(xs))
 
 
 def make_card(**over):
     base = {
         "id": "c0100", "type": "job_day", "job_id": 1,
         "title": "t", "body": "b",
-        "attrs": [3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "attrs": v(3, 2),
         "source": "manual",
     }
     return {**base, **over}
@@ -23,16 +28,16 @@ def make_card(**over):
 
 def test_sample_data_loads():
     store = load_content(DATA)
-    assert len(store.attributes) == 12
-    assert store.card_matrix.shape == (len(store.cards), 12)
+    assert len(store.attributes) == N_DIM
+    assert store.card_matrix.shape == (len(store.cards), N_DIM)
     assert np.allclose(np.linalg.norm(store.card_matrix, axis=1), 1.0)
     assert store.option_vector("c0002-a") is not None
 
 
 @pytest.mark.parametrize("attrs, msg", [
-    ([3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "0이 아닌 축"),          # 1개
-    ([1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0], "0이 아닌 축"),          # 5개
-    ([3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], "3점 축"),
+    (v(3), "0이 아닌 축"),          # 1개
+    (v(1, 1, 1, 1, 1), "0이 아닌 축"),          # 5개
+    (v(3, 3, 3), "3점 축"),
 ])
 def test_attr_rules(attrs, msg):
     with pytest.raises(ValidationError, match=msg):
@@ -43,7 +48,7 @@ def test_attr_length_and_range():
     with pytest.raises(ValidationError):
         Card(**make_card(attrs=[1, 1]))
     with pytest.raises(ValidationError):
-        Card(**make_card(attrs=[4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+        Card(**make_card(attrs=v(4, 1)))
 
 
 def test_job_day_needs_job_id():
@@ -53,8 +58,8 @@ def test_job_day_needs_job_id():
 
 def test_a_vs_b_option_count_and_gap():
     opt = lambda i, a: {"id": f"c0100-{i}", "label": "x", "attrs": a}
-    v1 = [2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    v2 = [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    v1 = v(2, 1)
+    v2 = v(1, 2)
     with pytest.raises(ValidationError, match="정확히 2개"):
         Card(**make_card(type="a_vs_b", job_id=None, options=[opt("a", v1)]))
     with pytest.raises(ValidationError, match="2점 이상"):
@@ -63,8 +68,8 @@ def test_a_vs_b_option_count_and_gap():
 
 def test_option_id_prefix():
     opts = [
-        {"id": "c9999-a", "label": "x", "attrs": [3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
-        {"id": "c0100-b", "label": "y", "attrs": [0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
+        {"id": "c9999-a", "label": "x", "attrs": v(3, 0, 1)},
+        {"id": "c0100-b", "label": "y", "attrs": v(0, 3, 1)},
     ]
     with pytest.raises(ValidationError, match="시작해야 함"):
         Card(**make_card(type="a_vs_b", job_id=None, options=opts))

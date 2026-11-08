@@ -1,3 +1,4 @@
 pydantic>=2.7
 numpy>=1.26
 pytest>=8
+google-genai>=1.0
