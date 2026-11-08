@@ -3,21 +3,25 @@
 > 기준: README.md. 완료 항목은 `[x]`, 진행 중은 `[~]`. 담당은 README 10절(BE1 = API·DB·로그·푸시, BE2 = 추천·LLM).
 
 ## 0. 기반 · 데이터 정의
-- [x] 12차원 정의 `backend/data/attributes.csv`
+- [x] 11차원 정의 `backend/data/attributes.csv` (2026-11-08 stability 삭제, 12 → 11)
 - [x] 태깅 루브릭 `docs/dimensions.md`
 - [x] 카드·직업·선택지 Pydantic 모델 + 규칙 검증 (`app/content/models.py`)
 - [x] 콘텐츠 로더: 검증 → 카드 행렬(L2 정규화)·선택지 벡터 (`app/content/loader.py`)
 - [x] 샘플 카드 3장 (`job_day` / `a_vs_b` / `situation`)
 - [x] 콘텐츠 테스트 (`tests/test_content.py`)
 - [x] `.env.example`
-- [ ] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·pywebpush·google-genai 추가
+- [~] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·pywebpush·google-genai 추가 (google-genai 완료)
 
 ## 1. 콘텐츠 수집 · 생성 (BE2)
 - [x] 커리어넷 직업백과 수집 스크립트 `scripts/fetch_careernet.py` (API 에러 응답 시 즉시 중단)
 - [x] API 키로 `--limit 5` 실행 → 응답 필드명 확인 (보정 불필요, `seq` 파라미터에 `job_cd` 사용 확인)
 - [x] 전체 수집 → `data/jobs.json` (552개, 10개 분야, 전공 정보 없는 직업 66개)
 - [x] 샘플 카드 `c0001.job_id`를 실제 수의사 코드(15)로 수정
-- [ ] LLM 카드 생성 스크립트 (raw 캐시 → 카드 초안 + attrs 태깅, 루브릭 프롬프트)
+- [x] LLM 카드 생성 스크립트 `scripts/generate_cards.py` (raw 캐시 → `job_day` 카드 초안 + attrs 태깅, 루브릭 프롬프트, 검증 실패 시 재요청)
+- [x] Gemini 키로 `--per-field 1` 시범 실행 (9장) → 가치 축이 비는 문제 발견, 프롬프트 수정
+- [x] 직업 552개 전수 태깅·분석 `scripts/tag_jobs.py` → `data/analysis/job_tags.csv`, 분석은 `docs/job-tagging-analysis.md`
+- [ ] 태깅 규칙 결정 (흥미 1~2 + 방식·가치 1~2 배분 여부) 후 시범 카드 재생성
+- [ ] 선택형 카드(`a_vs_b` / `situation`) 생성
 - [ ] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트
 - [ ] 카드 검수 후 `reviewed: true` 반영, 분야별 최소 수량 확보
 - [ ] 운영 시 `reviewed_only=True` 적용

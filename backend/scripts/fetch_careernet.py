@@ -14,17 +14,15 @@ API 명세: https://www.career.go.kr/cnet/front/openapi/jobCenter.do
 """
 import argparse
 import json
-import os
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 from typing import Any
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = BACKEND_DIR / "data"
+from scripts.common import BACKEND_DIR, DATA_DIR, read_env
+
 RAW_DIR = DATA_DIR / "raw" / "careernet"
 JOBS_PATH = DATA_DIR / "jobs.json"
 
@@ -34,21 +32,6 @@ DETAIL_URL = f"{BASE}/job.json"
 
 SUMMARY_MAX = 300
 MAJORS_MAX = 10
-
-
-# ---------- 설정 ----------
-
-def read_api_key() -> str:
-    key = os.environ.get("CAREERNET_API_KEY")
-    env = BACKEND_DIR / ".env"
-    if not key and env.exists():
-        for line in env.read_text(encoding="utf-8").splitlines():
-            name, sep, value = line.partition("=")
-            if sep and name.strip() == "CAREERNET_API_KEY":
-                key = value.strip().strip("'\"")
-    if not key:
-        sys.exit("CAREERNET_API_KEY가 없습니다. backend/.env 에 넣거나 환경 변수로 지정하세요.")
-    return key
 
 
 # ---------- HTTP ----------
@@ -166,7 +149,7 @@ def main() -> None:
         if args.limit:
             items = items[: args.limit]
     else:
-        api_key = read_api_key()
+        api_key = read_env("CAREERNET_API_KEY")
         print("직업 목록 수집 중...", file=sys.stderr)
         items = fetch_list(api_key, args.sleep, args.limit)
         list_cache.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")

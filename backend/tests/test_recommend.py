@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import pytest
 
-from app.content import load_content
+from app.content import N_DIM, load_content
 from app.content.loader import DATA_DIR
 from app.recommend import (
     Reaction,
@@ -22,7 +22,7 @@ PER_FIELD = 4
 
 
 def attrs(hi: int, lo: int) -> list[int]:
-    v = [0] * 12
+    v = [0] * N_DIM
     v[hi], v[lo] = 3, 1
     return v
 
@@ -45,10 +45,10 @@ def store(tmp_path_factory):
             })
     cards.append({
         "id": "c0100", "type": "a_vs_b", "title": "둘 중?", "body": "본문",
-        "attrs": [2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "attrs": [2, 0, 2] + [0] * (N_DIM - 3),
         "options": [
-            {"id": "c0100-a", "label": "가", "attrs": [3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
-            {"id": "c0100-b", "label": "나", "attrs": [0, 0, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0]},
+            {"id": "c0100-a", "label": "가", "attrs": [3, 1] + [0] * (N_DIM - 2)},
+            {"id": "c0100-b", "label": "나", "attrs": [0, 0, 3, 1] + [0] * (N_DIM - 4)},
         ],
         "source": "manual",
     })
@@ -83,7 +83,7 @@ def test_save_stronger_than_like(store):
 
 
 def test_dislike_lowers_only_card_axes_and_clips(store):
-    u = np.full(12, 0.05, dtype=np.float32)
+    u = np.full(N_DIM, 0.05, dtype=np.float32)
     after = apply_reaction(store, u, "c0001", Reaction.DISLIKE)   # 축 0(3점), 1(1점)
     assert after[0] == 0.0                     # 0 아래로 내려가지 않음
     assert after[1] < u[1]
@@ -181,4 +181,6 @@ def test_works_with_real_content():
     real = load_content()
     u = apply_reaction(real, new_user_vector(), "c0001", Reaction.LIKE)
     recs = recommend(real, u, n_reactions=10, seen={"c0001"}, rng=rng())
-    assert {r.card_id for r in recs} == {"c0002", "c0003"}
+    ids = [r.card_id for r in recs]
+    assert "c0001" not in ids
+    assert len(ids) == len(set(ids)) == min(10, len(real.cards) - 1)

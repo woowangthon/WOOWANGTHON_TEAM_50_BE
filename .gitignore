@@ -23,3 +23,6 @@ dist/
 
 # careernet raw cache (scripts/fetch_careernet.py)
 backend/data/raw/
+
+# 개인 작업 메모
+temp/

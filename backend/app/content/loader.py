@@ -21,7 +21,7 @@ class ContentStore:
     jobs: dict[int, Job]
     cards: list[Card]
     card_index: dict[str, int]        # card.id -> 행 번호
-    card_matrix: np.ndarray           # (N, 12) L2 정규화. 코사인 유사도 = 내적
+    card_matrix: np.ndarray           # (N, N_DIM) L2 정규화. 코사인 유사도 = 내적
     option_vectors: dict[str, np.ndarray]  # option.id -> (12,) 0~1 스케일
 
     def card(self, card_id: str) -> Card | None:

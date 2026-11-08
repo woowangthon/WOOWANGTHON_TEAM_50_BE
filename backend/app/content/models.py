@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-N_DIM = 12
+N_DIM = 11
 MIN_NONZERO, MAX_NONZERO = 2, 4   # 카드당 0이 아닌 축 개수
 MAX_CORE = 2                      # 3점(핵심) 축 최대 개수
 MIN_OPTION_GAP = 2                # 선택지끼리 최소 한 축에서 벌어져야 하는 점수 차
