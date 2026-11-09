@@ -82,7 +82,7 @@ flowchart LR
 └─ docs/                  # 설계 문서
 ```
 
-> 현재 `backend/data/attributes.csv`, `docs/dimensions.md`만 있고 나머지는 구현 예정.
+> 진행 상황은 [`docs/backend-checklist.md`](docs/backend-checklist.md) 참고.
 
 ## 6. API (초안)
 
@@ -101,8 +101,6 @@ flowchart LR
 
 ## 7. 실행 방법
 
-> 구현 시작 후 확정
-
 ```bash
 cd backend
 python -m venv .venv
@@ -118,11 +116,11 @@ uvicorn app.main:app --reload
 |---|---|
 | `SUPABASE_URL` | Supabase 프로젝트 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 키. 프론트·레포에 절대 노출 금지 |
-| `SUPABASE_JWT_SECRET` | 프론트가 보낸 JWT 검증용 |
 | `GEMINI_API_KEY` | Gemini API 키 |
 | `CAREERNET_API_KEY` | 커리어넷 Open API 키 (배치 스크립트 전용) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | 웹 푸시 서명 키 |
 | `CORS_ORIGINS` | 허용할 프론트 주소 (쉼표 구분) |
+| `CONTENT_REVIEWED_ONLY` | `true`면 검수된 카드만 노출 (검수된 카드가 없으면 서버가 뜨지 않음) |
 
 `.env`는 `.gitignore`에 포함돼 있다. 키를 커밋하지 말 것.
 

@@ -1,0 +1,49 @@
+"""프로필·성향 벡터 저장소."""
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID
+
+from postgrest.exceptions import APIError
+from supabase import Client
+
+UNIQUE_VIOLATION = "23505"
+
+Row = dict[str, Any]
+
+
+class ProfileExists(Exception):
+    pass
+
+
+class UserRepo:
+    def __init__(self, client: Client):
+        self._db = client
+
+    def get_profile(self, user_id: UUID) -> Row | None:
+        rows = self._db.table("profiles").select("*").eq("user_id", str(user_id)).limit(1).execute().data
+        return rows[0] if rows else None
+
+    def create_profile(self, user_id: UUID, fields: Row) -> Row:
+        try:
+            return self._db.table("profiles").insert({"user_id": str(user_id), **fields}).execute().data[0]
+        except APIError as e:
+            if e.code == UNIQUE_VIOLATION:
+                raise ProfileExists from e
+            raise
+
+    def update_profile(self, user_id: UUID, fields: Row) -> Row | None:
+        values = {**fields, "updated_at": datetime.now(UTC).isoformat()}
+        rows = self._db.table("profiles").update(values).eq("user_id", str(user_id)).execute().data
+        return rows[0] if rows else None
+
+    def get_vector(self, user_id: UUID) -> Row | None:
+        """아직 반응이 없는 사용자는 행이 없다 (None)."""
+        rows = (
+            self._db.table("user_vectors")
+            .select("vector, n_reactions")
+            .eq("user_id", str(user_id))
+            .limit(1)
+            .execute()
+            .data
+        )
+        return rows[0] if rows else None
