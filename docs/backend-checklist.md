@@ -10,7 +10,7 @@
 - [x] 샘플 카드 3장 (`job_day` / `a_vs_b` / `situation`)
 - [x] 콘텐츠 테스트 (`tests/test_content.py`)
 - [x] `.env.example`
-- [~] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·pywebpush·google-genai 추가 (google-genai 완료)
+- [~] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·pywebpush·google-genai 추가 (pywebpush 남음)
 
 ## 1. 콘텐츠 수집 · 생성 (BE2)
 - [x] 커리어넷 직업백과 수집 스크립트 `scripts/fetch_careernet.py` (API 에러 응답 시 즉시 중단)
@@ -20,7 +20,8 @@
 - [x] LLM 카드 생성 스크립트 `scripts/generate_cards.py` (raw 캐시 → `job_day` 카드 초안 + attrs 태깅, 루브릭 프롬프트, 검증 실패 시 재요청)
 - [x] Gemini 키로 `--per-field 1` 시범 실행 (9장) → 가치 축이 비는 문제 발견, 프롬프트 수정
 - [x] 직업 552개 전수 태깅·분석 `scripts/tag_jobs.py` → `data/analysis/job_tags.csv`, 분석은 `docs/job-tagging-analysis.md`
-- [ ] 태깅 규칙 결정 (흥미 1~2 + 방식·가치 1~2 배분 여부) 후 시범 카드 재생성
+- [x] 태깅 규칙 결정: 기존 2~4축 규칙 유지, stability 삭제까지만 반영
+- [ ] 시범 카드 재생성
 - [ ] 선택형 카드(`a_vs_b` / `situation`) 생성
 - [ ] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트
 - [ ] 카드 검수 후 `reviewed: true` 반영, 분야별 최소 수량 확보
@@ -40,14 +41,14 @@
 - [ ] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
 - [ ] 마이그레이션 `supabase/migrations/`: `profiles`, `user_vectors`, `impressions`, `reactions`, `push_subscriptions`
 - [ ] RLS 정책 (service role만 쓰기)
-- [ ] Supabase JWT 검증 의존성 (`app/core/`)
-- [ ] 설정 로딩 (`app/core/config.py`, pydantic-settings)
-- [ ] DB 접근 계층 (`app/db/`)
+- [x] Supabase JWT 검증 의존성 (`app/core/auth.py`, JWKS · ES256)
+- [x] 설정 로딩 (`app/core/config.py`, pydantic-settings)
+- [~] DB 접근 계층 (`app/db/`) — 프로필·벡터 조회 완료
 
 ## 4. API (BE1, 추천 연동은 BE2)
-- [ ] `main.py`: 앱 생성, CORS, 시작 시 콘텐츠 로드
-- [ ] `GET /health`
-- [ ] `POST /me` · `GET /me` · `PATCH /me`
+- [x] `main.py`: 앱 생성, CORS, 시작 시 콘텐츠 로드
+- [x] `GET /health`
+- [x] `POST /me` · `GET /me` · `PATCH /me` (테스트는 저장소 대역 사용, 실제 DB 연동 확인 필요)
 - [ ] `GET /feed` (노출 로그 + 출처 저장)
 - [ ] `POST /reactions` (반응 저장 + 벡터 갱신, 노출 id 연결)
 - [ ] `GET /me/report`
