@@ -21,7 +21,7 @@
 - [x] Gemini 키로 `--per-field 1` 시범 실행 (9장) → 가치 축이 비는 문제 발견, 프롬프트 수정
 - [x] 직업 552개 전수 태깅·분석 `scripts/tag_jobs.py` → `data/analysis/job_tags.csv`, 분석은 `docs/job-tagging-analysis.md`
 - [x] 태깅 규칙 결정: 기존 2~4축 규칙 유지, stability 삭제까지만 반영
-- [ ] 시범 카드 재생성
+- [x] 시범 카드 재생성 (묶음 생성으로 전환, `--batch` 기본 10장)
 - [ ] 선택형 카드(`a_vs_b` / `situation`) 생성
 - [ ] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트
 - [ ] 카드 검수 후 `reviewed: true` 반영, 분야별 최소 수량 확보
