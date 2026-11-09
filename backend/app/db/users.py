@@ -40,7 +40,7 @@ class UserRepo:
         """아직 반응이 없는 사용자는 행이 없다 (None)."""
         rows = (
             self._db.table("user_vectors")
-            .select("vector, n_reactions")
+            .select("vector, n_reactions, version")
             .eq("user_id", str(user_id))
             .limit(1)
             .execute()

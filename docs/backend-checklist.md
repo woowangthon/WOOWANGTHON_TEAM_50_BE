@@ -21,8 +21,9 @@
 - [x] Gemini 키로 `--per-field 1` 시범 실행 (9장) → 가치 축이 비는 문제 발견, 프롬프트 수정
 - [x] 직업 552개 전수 태깅·분석 `scripts/tag_jobs.py` → `data/analysis/job_tags.csv`, 분석은 `docs/job-tagging-analysis.md`
 - [x] 태깅 규칙 결정: 기존 2~4축 규칙 유지, stability 삭제까지만 반영
-- [ ] 시범 카드 재생성
-- [ ] 선택형 카드(`a_vs_b` / `situation`) 생성
+- [x] 시범 카드 재생성 (묶음 생성으로 전환, `--batch` 기본 10장)
+- [x] 직업 카드 분야별 12장 생성 (120장, 미검수)
+- [~] 선택형 카드(`a_vs_b` / `situation`) 생성 — `scripts/generate_choice_cards.py` 완료, 프롬프트 재시험 후 축별 8장 생성 예정
 - [ ] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트
 - [ ] 카드 검수 후 `reviewed: true` 반영, 분야별 최소 수량 확보
 - [ ] 운영 시 `reviewed_only=True` 적용
@@ -35,7 +36,7 @@
 - [x] 콜드 스타트: 반응 5개 미만이거나 벡터가 0이면 분야(`Job.field`·카드 유형)별 균등 샘플링
 - [x] 추천 출처 태그 `personalized` / `random` / `cold_start` + 점수(코사인)
 - [x] 단위 테스트 (`tests/test_recommend.py`)
-- [ ] 카드가 다 소진됐을 때 정책 (지금은 남은 만큼만 반환 → API에서 결정)
+- [x] 카드 소진 정책: 다시 보여 주지 않고 빈 목록 반환. 반응하지 않은 카드는 소진하지 않고 다음 피드에 재노출
 
 ## 3. DB · 인증 (BE1)
 - [ ] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
@@ -49,8 +50,8 @@
 - [x] `main.py`: 앱 생성, CORS, 시작 시 콘텐츠 로드
 - [x] `GET /health`
 - [x] `POST /me` · `GET /me` · `PATCH /me` (테스트는 저장소 대역 사용, 실제 DB 연동 확인 필요)
-- [ ] `GET /feed` (노출 로그 + 출처 저장)
-- [ ] `POST /reactions` (반응 저장 + 벡터 갱신, 노출 id 연결)
+- [x] `GET /feed` (노출 로그 + 출처 저장)
+- [x] `POST /reactions` (반응 저장 + 벡터 갱신을 `record_reaction` 트랜잭션으로 처리, 재시도 시 중복 방지)
 - [ ] `GET /me/report`
 - [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일
