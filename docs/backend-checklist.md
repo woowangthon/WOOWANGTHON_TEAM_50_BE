@@ -35,7 +35,7 @@
 - [x] 콜드 스타트: 반응 5개 미만이거나 벡터가 0이면 분야(`Job.field`·카드 유형)별 균등 샘플링
 - [x] 추천 출처 태그 `personalized` / `random` / `cold_start` + 점수(코사인)
 - [x] 단위 테스트 (`tests/test_recommend.py`)
-- [ ] 카드가 다 소진됐을 때 정책 (지금은 남은 만큼만 반환 → API에서 결정)
+- [x] 카드 소진 정책: 다시 보여 주지 않고 빈 목록 반환. 반응하지 않은 카드는 소진하지 않고 다음 피드에 재노출
 
 ## 3. DB · 인증 (BE1)
 - [ ] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
@@ -49,8 +49,8 @@
 - [x] `main.py`: 앱 생성, CORS, 시작 시 콘텐츠 로드
 - [x] `GET /health`
 - [x] `POST /me` · `GET /me` · `PATCH /me` (테스트는 저장소 대역 사용, 실제 DB 연동 확인 필요)
-- [ ] `GET /feed` (노출 로그 + 출처 저장)
-- [ ] `POST /reactions` (반응 저장 + 벡터 갱신, 노출 id 연결)
+- [x] `GET /feed` (노출 로그 + 출처 저장)
+- [x] `POST /reactions` (반응 저장 + 벡터 갱신을 `record_reaction` 트랜잭션으로 처리, 재시도 시 중복 방지)
 - [ ] `GET /me/report`
 - [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일

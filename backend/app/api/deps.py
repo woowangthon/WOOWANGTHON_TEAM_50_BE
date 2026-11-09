@@ -2,6 +2,7 @@
 from fastapi import Request
 
 from app.content import ContentStore
+from app.db.feed import FeedRepo
 from app.db.users import UserRepo
 
 
@@ -11,3 +12,7 @@ def get_content(request: Request) -> ContentStore:
 
 def get_users(request: Request) -> UserRepo:
     return request.app.state.users
+
+
+def get_feed(request: Request) -> FeedRepo:
+    return request.app.state.feed
