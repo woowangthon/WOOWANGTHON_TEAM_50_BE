@@ -24,7 +24,7 @@
 - [x] 시범 카드 재생성 (묶음 생성으로 전환, `--batch` 기본 10장)
 - [x] 직업 카드 분야별 12장 생성 (120장, 미검수)
 - [~] 선택형 카드(`a_vs_b` / `situation`) 생성 — `scripts/generate_choice_cards.py` 완료, 프롬프트 재시험 후 축별 8장 생성 예정
-- [ ] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트
+- [x] 검수용 CSV 내보내기 / 되돌려 넣기 스크립트 (`scripts/review_cards.py`)
 - [ ] 카드 검수 후 `reviewed: true` 반영, 분야별 최소 수량 확보
 - [ ] 운영 시 `reviewed_only=True` 적용
 
@@ -52,7 +52,9 @@
 - [x] `POST /me` · `GET /me` · `PATCH /me` (테스트는 저장소 대역 사용, 실제 DB 연동 확인 필요)
 - [x] `GET /feed` (노출 로그 + 출처 저장)
 - [x] `POST /reactions` (반응 저장 + 벡터 갱신을 `record_reaction` 트랜잭션으로 처리, 재시도 시 중복 방지)
-- [ ] `GET /me/report`
+- [x] `GET /me/report` — 점수 기반 (흥미 유형 상위 2 · 방식/가치 상위 2 · 어울리는 직업 5 · 관련 학과 5 · 공부 팁), 반응 5개 미만이면 `ready=false`
+- [x] `GET /me/saved` — 저장한 카드 목록 (최신 순)
+- [x] 피드 카드에 관련 학과 `majors` 추가
 - [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일
 - [ ] API 테스트 (Supabase 목킹)
@@ -68,7 +70,7 @@
 - [ ] "오늘의 카드" 발송 작업 (Render cron 등), 만료 구독 정리
 
 ## 7. 배포 · 마무리
-- [ ] Render 배포 설정, 환경 변수 등록
+- [~] Render 배포 설정, 환경 변수 등록 — `render.yaml` 추가, 서비스 생성과 환경 변수 등록 남음
 - [ ] 프론트와 API 계약 확정 (`/docs` Swagger 공유)
 - [ ] 맞춤 vs 무작위 반응률 비교 쿼리
 - [ ] README 7절(실행 방법)·9절(AI 활용 범위 TBD) 채우기
