@@ -80,8 +80,22 @@ def _top(attributes: list[Attribute], vector: np.ndarray, groups: set[str], k: i
     return sorted(picked, key=lambda a: (-vector[a.idx], a.idx))[:k]
 
 
+def has_final_consonant(word: str) -> bool:
+    """마지막 글자에 받침이 있는지. 한글이 아니면 받침 없음으로 본다."""
+    last = word.rstrip()[-1:] or " "
+    return "가" <= last <= "힣" and (ord(last) - ord("가")) % 28 != 0
+
+
+def josa(word: str, with_final: str, without_final: str) -> str:
+    """word + 받침에 맞는 조사. 예: josa("방식", "을", "를") → "방식을"."""
+    return word + (with_final if has_final_consonant(word) else without_final)
+
+
 def _join(words: list[str]) -> str:
-    return words[0] if len(words) == 1 else f"{', '.join(words[:-1])}과 {words[-1]}"
+    """["가", "나", "다"] → "가, 나와 다" (조사는 받침에 맞춘다)."""
+    if len(words) == 1:
+        return words[0]
+    return f"{', '.join(words[:-2] + [josa(words[-2], '과', '와')])} {words[-1]}"
 
 
 def _summary(interests: list[Attribute], strengths: list[Attribute]) -> str:
@@ -92,7 +106,7 @@ def _summary(interests: list[Attribute], strengths: list[Attribute]) -> str:
         labels = "·".join(a.label for a in interests)
         parts.append(f"{labels} 카드에 자주 끌렸어요. {_join([INTEREST_PHRASES[a.code] for a in interests])}에 관심이 많아 보여요.")
     if strengths:
-        parts.append(f"일할 때는 {_join([STRENGTH_PHRASES[a.code] for a in strengths])}을 중요하게 여기는 편이에요.")
+        parts.append(f"일할 때는 {josa(_join([STRENGTH_PHRASES[a.code] for a in strengths]), '을', '를')} 중요하게 여기는 편이에요.")
     return " ".join(parts)
 
 

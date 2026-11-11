@@ -1,7 +1,9 @@
 import numpy as np
 
 from app.content import N_DIM, load_content
-from app.report import MAX_SUMMARY, JobMatch, build_report, first_sentence, match_jobs, rank_majors
+import pytest
+
+from app.report import MAX_SUMMARY, JobMatch, _join, build_report, first_sentence, josa, match_jobs, rank_majors
 
 CONTENT = load_content()
 CODES = {a.code: a.idx for a in CONTENT.attributes}
@@ -96,3 +98,20 @@ def test_majors_are_weighted_by_job_score_and_major_count():
 def test_locked_report_counts_remaining():
     r = build_report(CONTENT, vector(I=1.0), 3, LIKES[:3])
     assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 2, [], "")
+
+
+@pytest.mark.parametrize("word, expected", [
+    ("방식", "방식을"), ("일", "일을"), ("자유", "자유를"), ("AI", "AI를"), ("", "를"),
+])
+def test_josa_follows_final_consonant(word, expected):
+    assert josa(word, "을", "를") == expected
+
+
+@pytest.mark.parametrize("words, expected", [
+    (["방식"], "방식"),
+    (["방식", "일"], "방식과 일"),
+    (["자유", "일"], "자유와 일"),
+    (["가", "나", "다"], "가, 나와 다"),
+])
+def test_join_uses_matching_particle(words, expected):
+    assert _join(words) == expected
