@@ -55,13 +55,13 @@ def test_abilities_get_matching_aptitude_or_default_sentence():
     ]
 
 
-def test_saved_job_ids_keep_newest_and_skip_non_job_cards():
+def test_saved_job_ids_keep_order_and_skip_non_job_and_removed_cards():
     job_cards = [c for c in CONTENT.cards if c.type == "job_day"][:2]
     choice = next(c for c in CONTENT.cards if c.options)
-    reactions = [
-        {"card_id": job_cards[1].id, "reaction": "save", "created_at": "t3"},
-        {"card_id": choice.id, "reaction": "save", "created_at": "t2"},
-        {"card_id": job_cards[0].id, "reaction": "like", "created_at": "t1"},
-        {"card_id": job_cards[1].id, "reaction": "save", "created_at": "t0"},
+    saved = [
+        {"card_id": job_cards[1].id, "created_at": "t3"},
+        {"card_id": choice.id, "created_at": "t2"},
+        {"card_id": "c9999", "created_at": "t1"},
+        {"card_id": job_cards[0].id, "created_at": "t0"},
     ]
-    assert saved_job_ids(CONTENT, reactions) == [(job_cards[1].job_id, "t3")]
+    assert saved_job_ids(CONTENT, saved) == [(job_cards[1].job_id, "t3"), (job_cards[0].job_id, "t0")]

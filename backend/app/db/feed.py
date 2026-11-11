@@ -85,3 +85,28 @@ class FeedRepo:
             .execute()
             .data
         )
+
+    # ---------- 저장 (북마크, 반응과 별개) ----------
+
+    def list_saved(self, user_id: UUID) -> list[Row]:
+        """최근에 저장한 순. [{card_id, created_at}]"""
+        return (
+            self._db.table("saved_cards")
+            .select("card_id, created_at")
+            .eq("user_id", str(user_id))
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+
+    def save_card(self, user_id: UUID, card_id: str) -> None:
+        """이미 저장한 카드면 아무것도 바꾸지 않는다 (저장 시각 유지)."""
+        self._db.table("saved_cards").upsert(
+            {"user_id": str(user_id), "card_id": card_id},
+            on_conflict="user_id,card_id",
+            ignore_duplicates=True,
+        ).execute()
+
+    def unsave_card(self, user_id: UUID, card_id: str) -> None:
+        """저장하지 않은 카드여도 오류 없이 끝난다."""
+        self._db.table("saved_cards").delete().eq("user_id", str(user_id)).eq("card_id", card_id).execute()

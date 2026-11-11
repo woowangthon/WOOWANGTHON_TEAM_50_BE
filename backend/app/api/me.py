@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 import numpy as np
 
@@ -89,13 +89,29 @@ def update_me(body: ProfileUpdate, user: User, users: Users, content: Content) -
 
 @router.get("/saved")
 def read_saved(user: User, feed: Feed, content: Content) -> SavedResponse:
-    """저장한 카드. 같은 카드는 한 번만, 콘텐츠에서 빠진 카드는 건너뛴다."""
-    cards: dict[str, SavedCard] = {}
-    for r in feed.list_reactions(user.id):
-        card = content.card(r["card_id"])
-        if r["reaction"] == "save" and card is not None and card.id not in cards:
-            cards[card.id] = SavedCard(saved_at=r["created_at"], **card_fields(card, content))
-    return SavedResponse(cards=list(cards.values()))
+    """저장한 카드, 최근 순. 콘텐츠에서 빠진 카드는 건너뛴다."""
+    cards = []
+    for s in feed.list_saved(user.id):
+        card = content.card(s["card_id"])
+        if card is not None:
+            cards.append(SavedCard(saved_at=s["created_at"], **card_fields(card, content)))
+    return SavedResponse(cards=cards)
+
+
+@router.put("/saved/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
+def save_card(card_id: str, user: User, feed: Feed, content: Content) -> Response:
+    """카드 저장 (북마크). 성향에는 반영하지 않는다. 이미 저장했으면 그대로 204."""
+    if content.card(card_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "card_not_found")
+    feed.save_card(user.id, card_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/saved/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unsave_card(card_id: str, user: User, feed: Feed) -> Response:
+    """저장 취소. 저장하지 않은 카드여도 204."""
+    feed.unsave_card(user.id, card_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/report")
@@ -131,7 +147,7 @@ def read_roadmaps(user: User, users: Users, feed: Feed, content: Content) -> Roa
     vector = _vector(users, user)
     jobs = [
         build_roadmap(content, job_id, vector, saved_at)
-        for job_id, saved_at in saved_job_ids(content, feed.list_reactions(user.id))
+        for job_id, saved_at in saved_job_ids(content, feed.list_saved(user.id))
     ]
     return RoadmapResponse(jobs=[j for j in jobs if j is not None])
 
@@ -140,7 +156,7 @@ def read_roadmaps(user: User, users: Users, feed: Feed, content: Content) -> Roa
 def read_roadmap(job_id: int, user: User, users: Users, feed: Feed, content: Content) -> RoadmapJob:
     """직업 하나의 로드맵. 리포트의 추천 직업처럼 저장하지 않은 직업도 미리 볼 수 있다."""
     vector = _vector(users, user)
-    saved = dict(saved_job_ids(content, feed.list_reactions(user.id)))
+    saved = dict(saved_job_ids(content, feed.list_saved(user.id)))
     roadmap = build_roadmap(content, job_id, vector, saved.get(job_id))
     if roadmap is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "job_not_found")
@@ -167,5 +183,5 @@ def read_journey(user: User, users: Users, feed: Feed, content: Content) -> Jour
         report_ready=report.ready,
         report_remaining=report.remaining,
         mission=mission(content.attributes, vector, now.date()),
-        badges=badges(content, reactions, streak, report.ready),
+        badges=badges(content, reactions, streak, report.ready, len(feed.list_saved(user.id))),
     )

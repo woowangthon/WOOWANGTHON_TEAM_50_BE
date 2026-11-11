@@ -52,12 +52,13 @@
 - [x] `POST /me` · `GET /me` · `PATCH /me` (테스트는 저장소 대역 사용, 실제 DB 연동 확인 필요)
 - [x] `GET /feed` (노출 로그 + 출처 저장)
 - [x] `POST /reactions` (반응 저장 + 벡터 갱신을 `record_reaction` 트랜잭션으로 처리, 재시도 시 중복 방지)
-- [x] `GET /me/report` — 점수 기반 (흥미 유형 상위 2 · 방식/가치 상위 2 · 어울리는 직업 5 · 관련 학과 5 · 공부 팁), 반응 5개 미만이면 `ready=false`
+- [x] `GET /me/report` — 점수 기반 (흥미 유형 상위 2 · 방식/가치 상위 2 · 어울리는 직업 5 · 관련 학과 5 · 공부 팁), 좋아요·선택이 1개 이상이면 열림 (2026-11-11 최소 5개 → 1개, FE 요청)
 - [x] `GET /me/saved` — 저장한 카드 목록 (최신 순)
+- [x] 저장을 반응에서 분리 (2026-11-11, FE 요청): `saved_cards` 테이블 · `PUT·DELETE /me/saved/{card_id}` · 피드 카드 `saved` · `POST /reactions`의 `save`는 422. 기존 save 반응은 마이그레이션으로 옮김
 - [x] `GET /onboarding` — 가입 설문 (흥미 유형을 묻는 선택형 카드 5장, 답은 `POST /reactions`). 다 답하면 첫 피드부터 맞춤 추천. 설문 답은 리포트 열림 수에서 제외
 - [ ] 마이그레이션 `20261111000000_onboarding_source.sql` 대시보드에서 실행 (impressions.source에 onboarding 추가)
 - [x] 피드 카드에 관련 학과 `majors` 추가
-- [x] 직업 로드맵 `GET /me/roadmap` (저장한 직업 카드마다) · `GET /me/roadmap/{job_id}` (미리보기). 단계: 지금 해 볼 수 있는 일 → 키워 볼 능력 → 진학 준비 → 자격과 진출, 커리어넷 원문 (`data/job_guides.json`, `scripts/build_job_guides.py`)
+- [x] 직업 로드맵 `GET /me/roadmap` (저장한 직업 카드마다, `saved_cards` 기준) · `GET /me/roadmap/{job_id}` (미리보기). 단계: 지금 해 볼 수 있는 일 → 키워 볼 능력 → 진학 준비 → 자격과 진출, 커리어넷 원문 (`data/job_guides.json`, `scripts/build_job_guides.py`)
 - [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일
 - [ ] API 테스트 (Supabase 목킹)

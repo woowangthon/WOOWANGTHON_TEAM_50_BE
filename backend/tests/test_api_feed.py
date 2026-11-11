@@ -35,12 +35,23 @@ class FakeStore:
         self.vectors: dict = {}
         self.conflicts_left = 0
         self.log: list[dict] = []
+        self.saved: dict[tuple, str] = {}    # (user_id, card_id) → 저장 시각
 
     def list_reactions(self, user_id):
         return [r for r in reversed(self.log) if r["user_id"] == user_id]
 
     def get_vector(self, user_id):
         return self.vectors.get(user_id)
+
+    def list_saved(self, user_id):
+        rows = [{"card_id": c, "created_at": t} for (u, c), t in self.saved.items() if u == user_id]
+        return sorted(rows, key=lambda r: r["created_at"], reverse=True)
+
+    def save_card(self, user_id, card_id):
+        self.saved.setdefault((user_id, card_id), f"2026-11-11T00:00:{len(self.saved):02d}+00:00")
+
+    def unsave_card(self, user_id, card_id):
+        self.saved.pop((user_id, card_id), None)
 
     def list_impressions(self, user_id):
         return [
@@ -281,6 +292,14 @@ def react(client, store, card, reaction):
     assert post_reaction(client, impression_for(store, card), reaction).status_code == 200
 
 
+def save(client, card_id):
+    return client.put(f"/me/saved/{card_id}", headers=headers())
+
+
+def unsave(client, card_id):
+    return client.delete(f"/me/saved/{card_id}", headers=headers())
+
+
 def saved(client) -> list[dict]:
     res = client.get("/me/saved", headers=headers())
     assert res.status_code == 200
@@ -298,11 +317,16 @@ def test_saved_and_report_require_token(client, path):
     assert client.get(path).status_code == 401
 
 
+@pytest.mark.parametrize("method", ["put", "delete"])
+def test_save_and_unsave_require_token(client, method):
+    assert getattr(client, method)(f"/me/saved/{JOB_CARD.id}").status_code == 401
+
+
 def test_saved_lists_only_saved_cards_newest_first(client, store):
     a, b, c = JOB_CARDS[:3]
-    react(client, store, a, "save")
+    assert save(client, a.id).status_code == 204
     react(client, store, b, "like")
-    react(client, store, c, "save")
+    assert save(client, c.id).status_code == 204
     cards = saved(client)
     assert [x["card_id"] for x in cards] == [c.id, a.id]
     assert cards[0]["job_name"] == CONTENT.jobs[c.job_id].name
@@ -310,30 +334,71 @@ def test_saved_lists_only_saved_cards_newest_first(client, store):
     assert "saved_at" in cards[0] and "attrs" not in cards[0]
 
 
+def test_save_is_a_bookmark_not_a_reaction(client, store):
+    assert save(client, JOB_CARD.id).status_code == 204
+    assert store.vectors == {} and store.reactions == {}     # 성향·반응 수에 반영하지 않음
+
+
+def test_save_twice_keeps_first_time_and_unsave_is_idempotent(client, store):
+    save(client, JOB_CARD.id)
+    first = saved(client)[0]["saved_at"]
+    assert save(client, JOB_CARD.id).status_code == 204
+    assert [c["saved_at"] for c in saved(client)] == [first]
+    assert unsave(client, JOB_CARD.id).status_code == 204
+    assert saved(client) == []
+    assert unsave(client, JOB_CARD.id).status_code == 204
+
+
+def test_save_unknown_card_is_404(client, store):
+    res = save(client, "c9999")
+    assert res.status_code == 404 and res.json() == {"detail": "card_not_found"}
+    assert store.saved == {}
+
+
 def test_saved_skips_other_users_and_removed_cards(client, store):
-    store.log.append({"user_id": uuid4(), "card_id": JOB_CARD.id, "reaction": "save", "created_at": "2026-11-10T00:00:00+00:00"})
-    store.log.append({"user_id": USER_ID, "card_id": "c9999", "reaction": "save", "created_at": "2026-11-10T00:00:00+00:00"})
+    store.saved[(uuid4(), JOB_CARD.id)] = "2026-11-10T00:00:00+00:00"
+    store.saved[(USER_ID, "c9999")] = "2026-11-10T00:00:00+00:00"
     assert saved(client) == []
 
 
-def test_report_is_locked_until_enough_reactions(client, store):
+def test_save_reaction_is_rejected(client, store):
+    res = post_reaction(client, impression_for(store, JOB_CARD), "save")
+    assert res.status_code == 422 and res.json() == {"detail": "invalid_reaction"}
+    assert store.reactions == {}
+
+
+def test_feed_marks_saved_cards(client, store):
+    cards = feed(client)
+    save(client, cards[0]["card_id"])
+    again = {c["card_id"]: c["saved"] for c in feed(client)}
+    assert again[cards[0]["card_id"]] is True
+    assert sum(again.values()) == 1
+
+
+def test_report_opens_after_one_like(client, store):
     react(client, store, JOB_CARDS[0], "like")
     body = report(client)
-    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 1, 4)
-    assert body["jobs"] == [] and body["majors"] == [] and body["summary"] == ""
-    assert len(body["traits"]) == N_DIM
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (True, 1, 0)
+    assert body["jobs"] and body["summary"]
 
 
 def test_report_stays_locked_after_only_passes(client, store):
     for card in JOB_CARDS[:5]:
         react(client, store, card, "pass")
     body = report(client)
-    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 5)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 1)
+    assert body["jobs"] == [] and body["majors"] == [] and body["summary"] == ""
+    assert len(body["traits"]) == N_DIM
 
 
 def test_report_for_new_user(client):
     body = report(client)
-    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 0, 5)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 0, 1)
+
+
+def test_saving_alone_does_not_open_report(client, store):
+    save(client, JOB_CARDS[0].id)
+    assert report(client)["ready"] is False
 
 
 def test_report_after_reactions(client, store):
@@ -419,7 +484,7 @@ def test_survey_answers_do_not_open_report(client, store):
     for card in onboarding(client)["cards"]:
         answer(client, card)
     body = report(client)
-    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 5)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 1)
     assert body["reaction_counts"]["choose"] == 5
 
 
@@ -451,7 +516,7 @@ def test_report_falls_back_when_ai_fails(client, store):
 
 def test_locked_report_does_not_call_ai(client, store):
     client.app.state.report_writer = writer = FakeWriter("x")
-    react(client, store, JOB_CARDS[0], "like")
+    react(client, store, JOB_CARDS[0], "pass")
     assert report(client)["summary_by_ai"] is False and writer.calls == 0
 
 
@@ -470,14 +535,14 @@ def test_roadmap_requires_token(client, path):
 
 def test_roadmap_is_empty_without_saved_job_cards(client, store):
     react(client, store, JOB_CARDS[0], "like")
-    react(client, store, CHOICE_CARD, "save")
+    save(client, CHOICE_CARD.id)
     assert roadmaps(client) == []
 
 
 def test_roadmap_lists_saved_jobs_newest_first(client, store):
     a, b = JOB_CARDS[:2]
-    react(client, store, a, "save")
-    react(client, store, b, "save")
+    save(client, a.id)
+    save(client, b.id)
     jobs = roadmaps(client)
     assert [j["job_id"] for j in jobs] == [b.job_id, a.job_id]
     assert jobs[0]["card_id"] == b.id and jobs[0]["saved_at"]
@@ -493,9 +558,15 @@ def test_single_roadmap_previews_unsaved_job(client, store):
 
 
 def test_single_roadmap_marks_saved_job(client, store):
-    react(client, store, JOB_CARD, "save")
+    save(client, JOB_CARD.id)
     body = client.get(f"/me/roadmap/{JOB_CARD.job_id}", headers=headers()).json()
     assert body["saved_at"] is not None
+
+
+def test_unsaved_job_leaves_roadmap(client, store):
+    save(client, JOB_CARD.id)
+    unsave(client, JOB_CARD.id)
+    assert roadmaps(client) == []
 
 
 def test_unknown_job_roadmap_is_404(client):
@@ -527,12 +598,21 @@ def test_journey_for_new_and_active_user(client, store):
     body = journey(client)
     assert (body["streak"], body["today_count"], body["daily_goal"]) == (0, 0, 5)
     assert body["persona"] is None and body["level"]["n"] == 1 and body["mission"]["text"]
-    assert not body["report_ready"] and body["report_remaining"] == 5
+    assert not body["report_ready"] and body["report_remaining"] == 1
     for card in JOB_CARDS[:5]:
         react(client, store, card, "like")
     body = journey(client)
     assert body["report_ready"] and body["level"]["n"] == 2 and body["persona"]["name"]
     assert {b["id"] for b in body["badges"] if b["earned"]} >= {"first_step", "report"}
+
+
+def test_collector_badge_counts_saved_cards(client, store):
+    earned = lambda: {b["id"] for b in journey(client)["badges"] if b["earned"]}
+    for card in JOB_CARDS[:2]:
+        save(client, card.id)
+    assert "collector" not in earned()
+    save(client, JOB_CARDS[2].id)
+    assert "collector" in earned()
 
 
 def test_jobs_list_and_detail(client, store):

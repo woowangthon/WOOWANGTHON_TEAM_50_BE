@@ -110,7 +110,10 @@ def mission(attributes: list[Attribute], vector: np.ndarray, today: date) -> dic
     }
 
 
-def badges(content: ContentStore, reactions: list[dict], streak: int, report_ready: bool) -> list[dict]:
+def badges(
+    content: ContentStore, reactions: list[dict], streak: int, report_ready: bool, n_saved: int = 0
+) -> list[dict]:
+    """n_saved: 저장한 카드 수 (FeedRepo.list_saved). 저장은 반응이 아니라 reactions에 없다."""
     kinds = [r["reaction"] for r in reactions]
     fields = set()
     for r in reactions:
@@ -120,7 +123,7 @@ def badges(content: ContentStore, reactions: list[dict], streak: int, report_rea
             fields.add(job.field)
     rules = [
         ("first_step", "첫 발자국", "첫 카드에 반응했어요", len(reactions) >= 1),
-        ("collector", "수집가", "카드를 3장 저장했어요", kinds.count("save") >= 3),
+        ("collector", "수집가", "카드를 3장 저장했어요", n_saved >= 3),
         ("decider", "결정 장인", "선택형 카드에 5번 답했어요", kinds.count("choose") >= 5),
         ("explorer", "분야 탐험가", "5개 분야의 직업을 살펴봤어요", len(fields) >= 5),
         ("streak3", "3일 연속", "3일 연속으로 탐색했어요", streak >= 3),

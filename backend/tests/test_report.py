@@ -37,13 +37,18 @@ def test_zero_axes_are_not_reported():
 def test_pass_and_dislike_do_not_open_report():
     reactions = [{"card_id": "c0001", "reaction": "pass"}] * 6 + [{"card_id": "c0001", "reaction": "dislike"}] * 4
     r = build_report(CONTENT, vector(), 10, reactions)
-    assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 5, [], "")
+    assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 1, [], "")
     assert r.reaction_counts == {"like": 0, "dislike": 4, "save": 0, "pass": 6, "choose": 0}
 
 
 def test_signal_reactions_are_counted():
     reactions = [{"card_id": "c0001", "reaction": x} for x in ["like", "save", "choose", "pass", "dislike"]]
-    assert build_report(CONTENT, vector(I=0.5), 5, reactions).remaining == 2
+    assert build_report(CONTENT, vector(I=0.5), 5, reactions, min_signal=5).remaining == 2
+
+
+def test_one_like_opens_report():
+    r = build_report(CONTENT, vector(I=0.5), 1, LIKES[:1])
+    assert r.ready and r.remaining == 0 and r.jobs
 
 
 def test_zero_vector_stays_locked_even_with_enough_reactions():
@@ -96,7 +101,7 @@ def test_majors_are_weighted_by_job_score_and_major_count():
 
 
 def test_locked_report_counts_remaining():
-    r = build_report(CONTENT, vector(I=1.0), 3, LIKES[:3])
+    r = build_report(CONTENT, vector(I=1.0), 3, LIKES[:3], min_signal=5)
     assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 2, [], "")
 
 
@@ -121,6 +126,7 @@ def test_onboarding_answers_are_not_counted():
     from app.onboarding import ONBOARDING_CARD_IDS
 
     survey = [{"card_id": i, "reaction": "choose"} for i in ONBOARDING_CARD_IDS]
-    r = build_report(CONTENT, vector(I=0.5), 7, survey + LIKES[:2])
-    assert (r.ready, r.remaining) == (False, 3)
+    r = build_report(CONTENT, vector(I=0.5), 5, survey)
+    assert (r.ready, r.remaining) == (False, 1)
     assert r.reaction_counts["choose"] == 5
+    assert build_report(CONTENT, vector(I=0.5), 7, survey + LIKES[:2], min_signal=5).remaining == 3
