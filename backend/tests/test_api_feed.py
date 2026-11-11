@@ -33,6 +33,10 @@ class FakeStore:
         self.reactions: dict[str, dict] = {}
         self.vectors: dict = {}
         self.conflicts_left = 0
+        self.log: list[dict] = []
+
+    def list_reactions(self, user_id):
+        return [r for r in reversed(self.log) if r["user_id"] == user_id]
 
     def get_vector(self, user_id):
         return self.vectors.get(user_id)
@@ -65,6 +69,8 @@ class FakeStore:
         if str(impression_id) in self.reactions:
             return "duplicate"
         self.reactions[str(impression_id)] = {"reaction": reaction, "option_id": option_id}
+        self.log.append({"user_id": user_id, "card_id": card_id, "reaction": reaction,
+                         "created_at": f"2026-11-10T00:00:{len(self.log):02d}+00:00"})
         row = self.vectors.get(user_id, {"n_reactions": 0, "version": 0})
         assert expected_version == (row["version"] if user_id in self.vectors else None)
         self.vectors[user_id] = {
@@ -148,6 +154,8 @@ def test_feed_exposes_display_fields_but_not_attrs(client, store):
     job = cards[JOB_CARD.id]
     choice = cards[CHOICE_CARD.id]
     assert job["job_name"] == CONTENT.jobs[JOB_CARD.job_id].name
+    assert job["majors"] == CONTENT.jobs[JOB_CARD.job_id].majors
+    assert choice["majors"] == []
     assert job["options"] == []
     assert choice["job_name"] is None
     assert choice["options"][0].keys() == {"id", "label"}
@@ -261,3 +269,84 @@ def test_invalid_reaction_is_422_and_not_stored(client, store, card, reaction, o
 
 def test_unknown_reaction_type_is_422(client, store):
     assert post_reaction(client, impression_for(store, JOB_CARD), "love").status_code == 422
+
+
+# ---------- 저장 목록 · 리포트 ----------
+
+JOB_CARDS = [c for c in CONTENT.cards if c.type == "job_day"]
+
+
+def react(client, store, card, reaction):
+    assert post_reaction(client, impression_for(store, card), reaction).status_code == 200
+
+
+def saved(client) -> list[dict]:
+    res = client.get("/me/saved", headers=headers())
+    assert res.status_code == 200
+    return res.json()["cards"]
+
+
+def report(client) -> dict:
+    res = client.get("/me/report", headers=headers())
+    assert res.status_code == 200
+    return res.json()
+
+
+@pytest.mark.parametrize("path", ["/me/saved", "/me/report"])
+def test_saved_and_report_require_token(client, path):
+    assert client.get(path).status_code == 401
+
+
+def test_saved_lists_only_saved_cards_newest_first(client, store):
+    a, b, c = JOB_CARDS[:3]
+    react(client, store, a, "save")
+    react(client, store, b, "like")
+    react(client, store, c, "save")
+    cards = saved(client)
+    assert [x["card_id"] for x in cards] == [c.id, a.id]
+    assert cards[0]["job_name"] == CONTENT.jobs[c.job_id].name
+    assert cards[0]["majors"] == CONTENT.jobs[c.job_id].majors
+    assert "saved_at" in cards[0] and "attrs" not in cards[0]
+
+
+def test_saved_skips_other_users_and_removed_cards(client, store):
+    store.log.append({"user_id": uuid4(), "card_id": JOB_CARD.id, "reaction": "save", "created_at": "2026-11-10T00:00:00+00:00"})
+    store.log.append({"user_id": USER_ID, "card_id": "c9999", "reaction": "save", "created_at": "2026-11-10T00:00:00+00:00"})
+    assert saved(client) == []
+
+
+def test_report_is_locked_until_enough_reactions(client, store):
+    react(client, store, JOB_CARDS[0], "like")
+    body = report(client)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 1, 4)
+    assert body["jobs"] == [] and body["majors"] == [] and body["summary"] == ""
+    assert len(body["traits"]) == N_DIM
+
+
+def test_report_stays_locked_after_only_passes(client, store):
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "pass")
+    body = report(client)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 5)
+
+
+def test_report_for_new_user(client):
+    body = report(client)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 0, 5)
+
+
+def test_report_after_reactions(client, store):
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    react(client, store, JOB_CARDS[5], "dislike")
+    body = report(client)
+    assert body["ready"] and body["remaining"] == 0
+    assert body["reaction_counts"] == {"like": 5, "dislike": 1, "save": 0, "pass": 0, "choose": 0}
+    assert all(j["summary"] for j in body["jobs"])
+    assert 1 <= len(body["top_interests"]) <= 2
+    assert {t["group"] for t in body["top_interests"]} == {"interest"}
+    assert body["summary"] and len(body["study_tips"]) == len(body["top_interests"])
+    assert 0 < len(body["jobs"]) <= 5
+    assert JOB_CARDS[5].job_id not in {j["job_id"] for j in body["jobs"]}
+    scores = [j["score"] for j in body["jobs"]]
+    assert scores == sorted(scores, reverse=True)

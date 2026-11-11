@@ -12,15 +12,19 @@ class OptionOut(BaseModel):
     label: str
 
 
-class FeedCard(BaseModel):
-    impression_id: UUID          # POST /reactions에 그대로 보낸다
-    source: Source
+class CardOut(BaseModel):
     card_id: str
     type: str
     title: str
     body: str
     job_name: str | None
+    majors: list[str]            # 직업 카드의 관련 학과. 선택형이거나 정보가 없으면 []
     options: list[OptionOut]
+
+
+class FeedCard(CardOut):
+    impression_id: UUID          # POST /reactions에 그대로 보낸다
+    source: Source
 
 
 class FeedResponse(BaseModel):

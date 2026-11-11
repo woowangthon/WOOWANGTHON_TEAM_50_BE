@@ -74,3 +74,14 @@ class FeedRepo:
             .execute()
             .data
         )
+
+    def list_reactions(self, user_id: UUID) -> list[Row]:
+        """최신 순. 저장 목록·리포트용."""
+        return (
+            self._db.table("reactions")
+            .select("card_id, reaction, created_at")
+            .eq("user_id", str(user_id))
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )

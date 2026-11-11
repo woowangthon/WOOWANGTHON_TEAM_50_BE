@@ -2,21 +2,40 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_content, get_users
-from app.content import N_DIM, ContentStore
+import numpy as np
+
+from app.api.deps import get_content, get_feed, get_users
+from app.api.feed import card_fields
+from app.content import N_DIM, Attribute, ContentStore
 from app.core.auth import CurrentUser, get_current_user
+from app.db.feed import FeedRepo
 from app.db.users import ProfileExists, Row, UserRepo
-from app.schemas.me import MeResponse, ProfileCreate, ProfileUpdate, Trait
+from app.report import build_report
+from app.schemas.me import (
+    MeResponse,
+    ProfileCreate,
+    ProfileUpdate,
+    ReportJob,
+    ReportResponse,
+    SavedCard,
+    SavedResponse,
+    Trait,
+)
 
 router = APIRouter(prefix="/me", tags=["me"])
 
 User = Annotated[CurrentUser, Depends(get_current_user)]
 Users = Annotated[UserRepo, Depends(get_users)]
 Content = Annotated[ContentStore, Depends(get_content)]
+Feed = Annotated[FeedRepo, Depends(get_feed)]
 
 
 def _not_found() -> HTTPException:
     return HTTPException(status.HTTP_404_NOT_FOUND, "profile_not_found")
+
+
+def _trait(a: Attribute, vector) -> Trait:
+    return Trait(code=a.code, label=a.label, group=a.group, score=float(vector[a.idx]))
 
 
 def _me(user: CurrentUser, profile: Row, users: UserRepo, content: ContentStore) -> MeResponse:
@@ -30,10 +49,7 @@ def _me(user: CurrentUser, profile: Row, users: UserRepo, content: ContentStore)
         created_at=profile["created_at"],
         updated_at=profile["updated_at"],
         n_reactions=row["n_reactions"] if row else 0,
-        traits=[
-            Trait(code=a.code, label=a.label, group=a.group, score=vector[a.idx])
-            for a in content.attributes
-        ],
+        traits=[_trait(a, vector) for a in content.attributes],
     )
 
 
@@ -61,3 +77,34 @@ def update_me(body: ProfileUpdate, user: User, users: Users, content: Content) -
     if profile is None:
         raise _not_found()
     return _me(user, profile, users, content)
+
+
+@router.get("/saved")
+def read_saved(user: User, feed: Feed, content: Content) -> SavedResponse:
+    """저장한 카드. 같은 카드는 한 번만, 콘텐츠에서 빠진 카드는 건너뛴다."""
+    cards: dict[str, SavedCard] = {}
+    for r in feed.list_reactions(user.id):
+        card = content.card(r["card_id"])
+        if r["reaction"] == "save" and card is not None and card.id not in cards:
+            cards[card.id] = SavedCard(saved_at=r["created_at"], **card_fields(card, content))
+    return SavedResponse(cards=list(cards.values()))
+
+
+@router.get("/report")
+def read_report(user: User, users: Users, feed: Feed, content: Content) -> ReportResponse:
+    row = users.get_vector(user.id)
+    vector = np.asarray(row["vector"] if row else [0.0] * N_DIM, dtype=np.float32)
+    report = build_report(content, vector, row["n_reactions"] if row else 0, feed.list_reactions(user.id))
+    return ReportResponse(
+        n_reactions=report.n_reactions,
+        ready=report.ready,
+        remaining=report.remaining,
+        traits=[_trait(a, vector) for a in content.attributes],
+        top_interests=[_trait(a, vector) for a in report.top_interests],
+        strengths=[_trait(a, vector) for a in report.strengths],
+        summary=report.summary,
+        study_tips=report.study_tips,
+        jobs=[ReportJob(**vars(j)) for j in report.jobs],
+        majors=report.majors,
+        reaction_counts=report.reaction_counts,
+    )

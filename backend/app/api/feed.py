@@ -4,7 +4,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_content, get_feed, get_users
-from app.content import ContentStore
+from app.content import Card, ContentStore
 from app.core.auth import CurrentUser, get_current_user
 from app.db.feed import FeedRepo
 from app.db.users import Row, UserRepo
@@ -26,19 +26,23 @@ def _user_vector(row: Row | None) -> np.ndarray:
     return np.asarray(row["vector"], dtype=np.float32) if row else new_user_vector()
 
 
+def card_fields(card: Card, content: ContentStore) -> dict:
+    """화면에 보여 줄 카드 필드 (CardOut). 점수(attrs)는 내보내지 않는다."""
+    job = content.jobs.get(card.job_id) if card.job_id is not None else None
+    return {
+        "card_id": card.id,
+        "type": card.type,
+        "title": card.title,
+        "body": card.body,
+        "job_name": job.name if job else None,
+        "majors": job.majors if job else [],
+        "options": [OptionOut(id=o.id, label=o.label) for o in card.options],
+    }
+
+
 def _feed_card(impression: Row, content: ContentStore) -> FeedCard:
     card = content.card(impression["card_id"])
-    job = content.jobs.get(card.job_id) if card.job_id is not None else None
-    return FeedCard(
-        impression_id=impression["id"],
-        source=impression["source"],
-        card_id=card.id,
-        type=card.type,
-        title=card.title,
-        body=card.body,
-        job_name=job.name if job else None,
-        options=[OptionOut(id=o.id, label=o.label) for o in card.options],
-    )
+    return FeedCard(impression_id=impression["id"], source=impression["source"], **card_fields(card, content))
 
 
 @router.get("/feed")
