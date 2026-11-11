@@ -70,3 +70,38 @@ class ReportResponse(BaseModel):
     jobs: list[ReportJob]
     majors: list[str]
     reaction_counts: dict[str, int]  # like·dislike·save·pass·choose 5개 키가 항상 있음
+
+
+class RoadmapTrait(BaseModel):
+    code: str
+    label: str
+    group: Literal["interest", "style", "value"]
+    job_score: int               # 이 직업 카드의 점수 (0~3)
+    my_score: float              # 내 성향 점수 (0~1). GET /me traits와 같은 값
+
+
+class RoadmapItem(BaseModel):
+    title: str | None            # 없으면 detail만 보여 준다
+    detail: str
+
+
+class RoadmapStep(BaseModel):
+    key: Literal["explore", "grow", "study", "career"]
+    title: str                   # 화면에 그대로 써도 되는 단계 이름
+    items: list[RoadmapItem]
+
+
+class RoadmapJob(BaseModel):
+    job_id: int
+    name: str
+    field: str | None
+    summary: str                 # 직업 설명 첫 문장
+    majors: list[str]
+    card_id: str | None          # 이 직업의 직업 카드 (없으면 null)
+    saved_at: datetime | None    # 저장한 시각. 저장하지 않은 직업 미리보기면 null
+    traits: list[RoadmapTrait]   # 이 직업 카드에서 점수가 있는 축, 직업 점수 높은 순
+    steps: list[RoadmapStep]     # 내용이 있는 단계만, 순서대로
+
+
+class RoadmapResponse(BaseModel):
+    jobs: list[RoadmapJob]       # 저장한 직업 카드의 직업, 최근에 저장한 순. 없으면 []

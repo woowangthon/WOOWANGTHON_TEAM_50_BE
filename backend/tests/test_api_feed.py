@@ -452,3 +452,51 @@ def test_locked_report_does_not_call_ai(client, store):
     client.app.state.report_writer = writer = FakeWriter("x")
     react(client, store, JOB_CARDS[0], "like")
     assert report(client)["summary_by_ai"] is False and writer.calls == 0
+
+
+# ---------- 로드맵 ----------
+
+def roadmaps(client) -> list[dict]:
+    res = client.get("/me/roadmap", headers=headers())
+    assert res.status_code == 200
+    return res.json()["jobs"]
+
+
+@pytest.mark.parametrize("path", ["/me/roadmap", f"/me/roadmap/{JOB_CARD.job_id}"])
+def test_roadmap_requires_token(client, path):
+    assert client.get(path).status_code == 401
+
+
+def test_roadmap_is_empty_without_saved_job_cards(client, store):
+    react(client, store, JOB_CARDS[0], "like")
+    react(client, store, CHOICE_CARD, "save")
+    assert roadmaps(client) == []
+
+
+def test_roadmap_lists_saved_jobs_newest_first(client, store):
+    a, b = JOB_CARDS[:2]
+    react(client, store, a, "save")
+    react(client, store, b, "save")
+    jobs = roadmaps(client)
+    assert [j["job_id"] for j in jobs] == [b.job_id, a.job_id]
+    assert jobs[0]["card_id"] == b.id and jobs[0]["saved_at"]
+    assert jobs[0]["steps"]
+    assert all(t["my_score"] >= 0 for t in jobs[0]["traits"])
+
+
+def test_single_roadmap_previews_unsaved_job(client, store):
+    res = client.get(f"/me/roadmap/{JOB_CARD.job_id}", headers=headers())
+    assert res.status_code == 200
+    body = res.json()
+    assert body["job_id"] == JOB_CARD.job_id and body["saved_at"] is None
+
+
+def test_single_roadmap_marks_saved_job(client, store):
+    react(client, store, JOB_CARD, "save")
+    body = client.get(f"/me/roadmap/{JOB_CARD.job_id}", headers=headers()).json()
+    assert body["saved_at"] is not None
+
+
+def test_unknown_job_roadmap_is_404(client):
+    res = client.get("/me/roadmap/999999", headers=headers())
+    assert (res.status_code, res.json()) == (404, {"detail": "job_not_found"})

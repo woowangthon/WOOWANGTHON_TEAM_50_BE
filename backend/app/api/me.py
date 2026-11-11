@@ -12,12 +12,15 @@ from app.db.feed import FeedRepo
 from app.db.users import ProfileExists, Row, UserRepo
 from app.llm.report_writer import ReportWriter
 from app.report import build_report
+from app.roadmap import build_roadmap, saved_job_ids
 from app.schemas.me import (
     MeResponse,
     ProfileCreate,
     ProfileUpdate,
     ReportJob,
     ReportResponse,
+    RoadmapJob,
+    RoadmapResponse,
     SavedCard,
     SavedResponse,
     Trait,
@@ -112,3 +115,30 @@ def read_report(user: User, users: Users, feed: Feed, content: Content, writer: 
         majors=report.majors,
         reaction_counts=report.reaction_counts,
     )
+
+
+def _vector(users: UserRepo, user: CurrentUser) -> np.ndarray:
+    row = users.get_vector(user.id)
+    return np.asarray(row["vector"] if row else [0.0] * N_DIM, dtype=np.float32)
+
+
+@router.get("/roadmap")
+def read_roadmaps(user: User, users: Users, feed: Feed, content: Content) -> RoadmapResponse:
+    """저장한 직업 카드마다 로드맵. 최근에 저장한 순."""
+    vector = _vector(users, user)
+    jobs = [
+        build_roadmap(content, job_id, vector, saved_at)
+        for job_id, saved_at in saved_job_ids(content, feed.list_reactions(user.id))
+    ]
+    return RoadmapResponse(jobs=[j for j in jobs if j is not None])
+
+
+@router.get("/roadmap/{job_id}")
+def read_roadmap(job_id: int, user: User, users: Users, feed: Feed, content: Content) -> RoadmapJob:
+    """직업 하나의 로드맵. 리포트의 추천 직업처럼 저장하지 않은 직업도 미리 볼 수 있다."""
+    vector = _vector(users, user)
+    saved = dict(saved_job_ids(content, feed.list_reactions(user.id)))
+    roadmap = build_roadmap(content, job_id, vector, saved.get(job_id))
+    if roadmap is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "job_not_found")
+    return roadmap
