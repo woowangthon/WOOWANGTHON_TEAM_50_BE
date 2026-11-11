@@ -6,12 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 
-from app.api import feed, health, me, onboarding
+from app.api import feed, health, jobs, me, onboarding
 from app.content import load_content
 from app.core.auth import TokenVerifier
 from app.core.config import Settings, get_settings
 from app.db.feed import FeedRepo
 from app.db.users import UserRepo
+from app.jobs import load_job_index
 from app.llm.report_writer import create_writer
 
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not settings.supabase_url or not service_key:
             raise RuntimeError("SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY를 설정하세요 (backend/.env)")
         app.state.content = load_content(reviewed_only=settings.content_reviewed_only)
+        app.state.job_index = load_job_index(app.state.content)
         app.state.verifier = TokenVerifier(settings.supabase_url)
         client = create_client(settings.supabase_url, service_key)
         app.state.users = UserRepo(client)
@@ -45,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(me.router)
     app.include_router(feed.router)
     app.include_router(onboarding.router)
+    app.include_router(jobs.router)
     return app
 
 
