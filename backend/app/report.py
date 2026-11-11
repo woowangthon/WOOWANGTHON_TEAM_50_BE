@@ -7,6 +7,7 @@
 
 리포트는 성향을 만드는 반응(좋아요·저장·선택)이 MIN_SIGNAL개 이상이고 벡터가 0이 아닐 때 열린다.
 패스는 벡터를 바꾸지 않고, 0에서 시작한 벡터는 싫어요로도 0에 머물기 때문에 이 둘은 세지 않는다.
+가입 설문 답(app.onboarding)도 세지 않는다. 설문만 하고 바로 리포트가 열리지 않게 하기 위해서다.
 """
 import re
 from collections import Counter, defaultdict
@@ -16,6 +17,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from app.content import Attribute, ContentStore
+from app.onboarding import ONBOARDING_CARD_IDS
 from app.recommend.vector import Reaction
 
 MIN_SIGNAL = 5
@@ -165,7 +167,9 @@ def build_report(
 ) -> Report:
     """reactions: [{card_id, reaction}, ...] — 반응 종류를 세고, 싫어요 한 직업을 뺀다."""
     counts = {r.value: 0 for r in Reaction} | Counter(r["reaction"] for r in reactions)
-    signal = sum(counts[r] for r in SIGNAL_REACTIONS)
+    signal = sum(
+        1 for r in reactions if r["reaction"] in SIGNAL_REACTIONS and r["card_id"] not in ONBOARDING_CARD_IDS
+    )
     if signal < min_signal or not np.any(vector > 0):
         # 반응 수는 채웠는데 싫어요로 벡터가 0이 된 경우에도 1개는 더 필요하다고 안내
         return Report(n_reactions, False, max(min_signal - signal, 1), reaction_counts=counts)

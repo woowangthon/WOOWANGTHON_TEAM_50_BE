@@ -1,3 +1,4 @@
+from collections import Counter
 import json
 import shutil
 
@@ -125,11 +126,31 @@ def rng():
     return np.random.default_rng(0)
 
 
-def test_cold_start_spreads_across_buckets(store):
+def test_cold_start_is_uniform_random(store):
     recs = recommend(store, new_user_vector(), n_reactions=0, n=4, rng=rng())
     assert {r.source for r in recs} == {"cold_start"}
-    buckets = {bucket_of(store, store.card(r.card_id)) for r in recs}
-    assert len(buckets) == 4                    # 분야 A·B·C + 선택형, 겹치지 않음
+    assert len({r.card_id for r in recs}) == 4
+    # 여러 번 뽑으면 모든 카드가 고르게 나온다 (분야별 순환이 아님)
+    counts = Counter(
+        r.card_id
+        for seed in range(300)
+        for r in recommend(store, new_user_vector(), n_reactions=0, n=1, rng=np.random.default_rng(seed))
+    )
+    assert set(counts) == {c.id for c in store.cards}
+
+
+def test_cold_start_varies_between_requests(store):
+    picks = {
+        tuple(r.card_id for r in recommend(store, new_user_vector(), 0, n=3, rng=np.random.default_rng(seed)))
+        for seed in range(10)
+    }
+    assert len(picks) > 1
+
+
+def test_cold_start_skips_seen_cards(store):
+    seen = {c.id for c in store.cards[:-2]}
+    recs = recommend(store, new_user_vector(), 0, seen=seen, n=5, rng=rng())
+    assert {r.card_id for r in recs} == {c.id for c in store.cards[-2:]}
 
 
 def test_cold_start_when_vector_empty_even_with_reactions(store):
