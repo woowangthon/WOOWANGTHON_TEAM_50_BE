@@ -97,6 +97,22 @@ class Card(BaseModel):
         return self
 
 
+class Activity(BaseModel):
+    title: str | None                         # 커리어넷 원문에 "제목 - 설명" 구분이 없으면 None
+    detail: str
+
+
+class JobGuide(BaseModel):
+    """목표 직업 안내. 커리어넷 원문 그대로 (scripts/build_job_guides.py)."""
+    job_id: int
+    activities: list[Activity] = []           # 중고등학생 진로 탐색 활동
+    abilities: list[str] = []                 # 필요한 능력 이름
+    aptitudes: list[str] = []                 # 필요한 적성 설명
+    education: list[str] = []                 # 필요한 학력·교육 과정
+    certificates: list[str] = []
+    careers: list[str] = []                   # 진출 분야
+
+
 class CardDeck(BaseModel):
     schema_version: int
     cards: list[Card]

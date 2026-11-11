@@ -5,12 +5,12 @@
 """
 import csv
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
 
-from .models import N_DIM, Attribute, Card, CardDeck, Job
+from .models import N_DIM, Attribute, Card, CardDeck, Job, JobGuide
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
@@ -23,6 +23,7 @@ class ContentStore:
     card_index: dict[str, int]        # card.id -> 행 번호
     card_matrix: np.ndarray           # (N, N_DIM) L2 정규화. 코사인 유사도 = 내적
     option_vectors: dict[str, np.ndarray]  # option.id -> (12,) 0~1 스케일
+    guides: dict[int, JobGuide] = field(default_factory=dict)   # job_id -> 목표 직업 안내
 
     def card(self, card_id: str) -> Card | None:
         i = self.card_index.get(card_id)
@@ -59,6 +60,13 @@ def load_jobs(path: Path) -> dict[int, Job]:
     return {j.id: j for j in jobs}
 
 
+def load_guides(path: Path) -> dict[int, JobGuide]:
+    if not path.exists():
+        return {}
+    guides = [JobGuide(**g) for g in json.loads(path.read_text(encoding="utf-8"))]
+    return {g.job_id: g for g in guides}
+
+
 def load_content(data_dir: Path = DATA_DIR, reviewed_only: bool = False) -> ContentStore:
     attributes = load_attributes(data_dir / "attributes.csv")
     jobs = load_jobs(data_dir / "jobs.json")
@@ -83,4 +91,5 @@ def load_content(data_dir: Path = DATA_DIR, reviewed_only: bool = False) -> Cont
         card_index={c.id: i for i, c in enumerate(cards)},
         card_matrix=matrix,
         option_vectors=options,
+        guides=load_guides(data_dir / "job_guides.json"),
     )
