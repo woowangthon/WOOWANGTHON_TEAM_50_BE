@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 import numpy as np
 
-from app.api.deps import get_content, get_feed, get_users
+from app.api.deps import get_content, get_feed, get_report_writer, get_users
 from app.api.feed import card_fields
 from app.content import N_DIM, Attribute, ContentStore
 from app.core.auth import CurrentUser, get_current_user
 from app.db.feed import FeedRepo
 from app.db.users import ProfileExists, Row, UserRepo
+from app.llm.report_writer import ReportWriter
 from app.report import build_report
 from app.schemas.me import (
     MeResponse,
@@ -28,6 +29,7 @@ User = Annotated[CurrentUser, Depends(get_current_user)]
 Users = Annotated[UserRepo, Depends(get_users)]
 Content = Annotated[ContentStore, Depends(get_content)]
 Feed = Annotated[FeedRepo, Depends(get_feed)]
+Writer = Annotated[ReportWriter | None, Depends(get_report_writer)]
 
 
 def _not_found() -> HTTPException:
@@ -91,10 +93,11 @@ def read_saved(user: User, feed: Feed, content: Content) -> SavedResponse:
 
 
 @router.get("/report")
-def read_report(user: User, users: Users, feed: Feed, content: Content) -> ReportResponse:
+def read_report(user: User, users: Users, feed: Feed, content: Content, writer: Writer) -> ReportResponse:
     row = users.get_vector(user.id)
     vector = np.asarray(row["vector"] if row else [0.0] * N_DIM, dtype=np.float32)
     report = build_report(content, vector, row["n_reactions"] if row else 0, feed.list_reactions(user.id))
+    ai_summary = writer.summarize(user.id, report) if report.ready and writer else None
     return ReportResponse(
         n_reactions=report.n_reactions,
         ready=report.ready,
@@ -102,7 +105,8 @@ def read_report(user: User, users: Users, feed: Feed, content: Content) -> Repor
         traits=[_trait(a, vector) for a in content.attributes],
         top_interests=[_trait(a, vector) for a in report.top_interests],
         strengths=[_trait(a, vector) for a in report.strengths],
-        summary=report.summary,
+        summary=ai_summary or report.summary,
+        summary_by_ai=ai_summary is not None,
         study_tips=report.study_tips,
         jobs=[ReportJob(**vars(j)) for j in report.jobs],
         majors=report.majors,

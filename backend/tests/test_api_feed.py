@@ -350,3 +350,35 @@ def test_report_after_reactions(client, store):
     assert JOB_CARDS[5].job_id not in {j["job_id"] for j in body["jobs"]}
     scores = [j["score"] for j in body["jobs"]]
     assert scores == sorted(scores, reverse=True)
+
+
+class FakeWriter:
+    def __init__(self, text):
+        self.text, self.calls = text, 0
+
+    def summarize(self, user_id, report):
+        self.calls += 1
+        return self.text
+
+
+def test_report_uses_ai_summary_when_available(client, store):
+    client.app.state.report_writer = writer = FakeWriter("AI가 쓴 설명이에요.")
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    body = report(client)
+    assert (body["summary"], body["summary_by_ai"]) == ("AI가 쓴 설명이에요.", True)
+    assert writer.calls == 1
+
+
+def test_report_falls_back_when_ai_fails(client, store):
+    client.app.state.report_writer = FakeWriter(None)
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    body = report(client)
+    assert body["summary"] and body["summary_by_ai"] is False
+
+
+def test_locked_report_does_not_call_ai(client, store):
+    client.app.state.report_writer = writer = FakeWriter("x")
+    react(client, store, JOB_CARDS[0], "like")
+    assert report(client)["summary_by_ai"] is False and writer.calls == 0
