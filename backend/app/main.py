@@ -6,14 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 
-from app.api import feed, health, jobs, me, onboarding
+from app.api import chat, feed, health, jobs, me, onboarding
 from app.content import load_content
 from app.core.auth import TokenVerifier
 from app.core.config import Settings, get_settings
 from app.db.feed import FeedRepo
 from app.db.users import UserRepo
 from app.jobs import load_job_index
-from app.llm.report_writer import create_writer
+from app.llm.coach import Coach
+from app.llm.report_writer import ReportWriter, create_gemini
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -31,9 +32,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.users = UserRepo(client)
         app.state.feed = FeedRepo(client)
         gemini_key = settings.gemini_api_key.get_secret_value()
-        app.state.report_writer = (
-            create_writer(gemini_key, settings.gemini_model, settings.gemini_timeout_s) if gemini_key else None
-        )
+        gemini = create_gemini(gemini_key, settings.gemini_timeout_s) if gemini_key else None
+        app.state.report_writer = ReportWriter(gemini, settings.gemini_model) if gemini else None
+        app.state.coach = Coach(gemini, settings.gemini_model) if gemini else None
         yield
 
     app = FastAPI(title="FIND-ME API", lifespan=lifespan)
@@ -48,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(feed.router)
     app.include_router(onboarding.router)
     app.include_router(jobs.router)
+    app.include_router(chat.router)
     return app
 
 

@@ -5,6 +5,7 @@ from app.content import ContentStore
 from app.db.feed import FeedRepo
 from app.db.users import UserRepo
 from app.jobs import JobIndex
+from app.llm.coach import Coach
 from app.llm.report_writer import ReportWriter
 
 
@@ -22,6 +23,11 @@ def get_feed(request: Request) -> FeedRepo:
 
 def get_job_index(request: Request) -> JobIndex:
     return request.app.state.job_index
+
+
+def get_coach(request: Request) -> Coach | None:
+    """GEMINI_API_KEY 가 없으면 None."""
+    return getattr(request.app.state, "coach", None)
 
 
 def get_report_writer(request: Request) -> ReportWriter | None:

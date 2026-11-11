@@ -78,6 +78,9 @@ class ReportWriter:
         return text
 
 
+def create_gemini(api_key: str, timeout_s: float) -> genai.Client:
+    return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_s * 1000)))
+
+
 def create_writer(api_key: str, model: str, timeout_s: float) -> ReportWriter:
-    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_s * 1000)))
-    return ReportWriter(client, model)
+    return ReportWriter(create_gemini(api_key, timeout_s), model)

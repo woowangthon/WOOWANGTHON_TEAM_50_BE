@@ -555,3 +555,89 @@ def test_report_jobs_have_match_percent(client, store):
         react(client, store, card, "like")
     jobs = report(client)["jobs"]
     assert all(j["match"] == round(j["score"] * 100) for j in jobs)
+
+
+# ---------- AI 동료: 직업 질문 · 대화 ----------
+
+class FakeCoach:
+    def __init__(self, answer="AI 답변이에요.", reply={"reply": "AI 대답이에요.", "suggestions": ["더 알려 줘"]}, allowed=True):
+        self.answer, self.reply, self.allowed, self.seen = answer, reply, allowed, []
+
+    def answer_job(self, user_id, n_reactions, detail, question_id):
+        return self.answer
+
+    def allow(self, user_id):
+        return self.allowed
+
+    def chat(self, ctx, messages):
+        self.seen.append((ctx, messages))
+        return self.reply
+
+
+def ask(client, job_id, question_id):
+    return client.post(f"/jobs/{job_id}/ask", headers=headers(), json={"question_id": question_id})
+
+
+def say(client, *texts):
+    roles = ["user", "ai"]
+    messages = [{"role": roles[i % 2], "text": t} for i, t in enumerate(texts)]
+    return client.post("/chat", headers=headers(), json={"messages": messages})
+
+
+def test_job_questions_and_fallback_answers(client, store):
+    job_id = JOB_CARD.job_id
+    detail = client.get(f"/jobs/{job_id}", headers=headers()).json()
+    assert [q["id"] for q in detail["questions"]] == ["day", "hard", "start"]     # 성향이 없으면 '왜 맞나요' 없음
+    assert ask(client, job_id, "why_match").status_code == 422
+    for qid in ("day", "hard", "start"):
+        body = ask(client, job_id, qid).json()
+        assert body["answer"] and body["by_ai"] is False
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    assert client.get(f"/jobs/{job_id}", headers=headers()).json()["questions"][0]["id"] == "why_match"
+    why = ask(client, job_id, "why_match").json()
+    assert "%" in why["answer"] and why["by_ai"] is False
+    assert ask(client, job_id, "salary").status_code == 422                        # 정해진 질문만
+    assert ask(client, 999999, "day").status_code == 404
+
+
+def test_job_ask_uses_ai_when_available(client, store):
+    client.app.state.coach = FakeCoach()
+    assert ask(client, JOB_CARD.job_id, "day").json() == {"answer": "AI 답변이에요.", "by_ai": True}
+    client.app.state.coach = FakeCoach(answer=None)
+    assert ask(client, JOB_CARD.job_id, "day").json()["by_ai"] is False
+
+
+def test_chat_falls_back_to_records_without_ai(client, store):
+    body = say(client, "안녕").json()
+    assert body["by_ai"] is False and "끌려요" in body["reply"] and body["suggestions"]
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    assert "유형" in say(client, "나는 어떤 사람이야?").json()["reply"]
+
+
+def test_chat_uses_ai_with_student_context(client, store):
+    client.app.state.coach = coach = FakeCoach()
+    react(client, store, JOB_CARDS[0], "save")
+    body = say(client, "안녕", "반가워요", "내 성향 알려 줘").json()
+    assert body == {"reply": "AI 대답이에요.", "suggestions": ["더 알려 줘"], "by_ai": True}
+    ctx, messages = coach.seen[0]
+    assert ctx["saved"] == [JOB_CARDS[0].title] and ctx["jobs"] and len(messages) == 3
+    assert "nickname" not in ctx and "email" not in ctx
+
+
+def test_chat_crisis_message_skips_ai(client, store):
+    client.app.state.coach = coach = FakeCoach()
+    body = say(client, "요즘 그냥 죽고 싶어").json()
+    assert "1388" in body["reply"] and body["by_ai"] is False and coach.seen == []
+
+
+def test_chat_limits_and_validation(client, store):
+    client.app.state.coach = FakeCoach(allowed=False)
+    assert say(client, "안녕").status_code == 429
+    client.app.state.coach = FakeCoach(reply=None)
+    assert say(client, "안녕").json()["by_ai"] is False                             # AI 실패 → 기록 기반
+    assert say(client, "안녕", "마지막이 AI 말").status_code == 422
+    assert say(client, "가" * 301).status_code == 422
+    assert client.post("/chat", headers=headers(), json={"messages": []}).status_code == 422
+    assert client.post("/chat", json={"messages": [{"role": "user", "text": "안녕"}]}).status_code == 401
