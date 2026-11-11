@@ -115,3 +115,12 @@ def test_josa_follows_final_consonant(word, expected):
 ])
 def test_join_uses_matching_particle(words, expected):
     assert _join(words) == expected
+
+
+def test_onboarding_answers_are_not_counted():
+    from app.onboarding import ONBOARDING_CARD_IDS
+
+    survey = [{"card_id": i, "reaction": "choose"} for i in ONBOARDING_CARD_IDS]
+    r = build_report(CONTENT, vector(I=0.5), 7, survey + LIKES[:2])
+    assert (r.ready, r.remaining) == (False, 3)
+    assert r.reaction_counts["choose"] == 5
