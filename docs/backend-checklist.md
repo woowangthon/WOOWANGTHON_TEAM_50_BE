@@ -57,6 +57,7 @@
 - [x] `GET /onboarding` — 가입 설문 (흥미 유형을 묻는 선택형 카드 5장, 답은 `POST /reactions`). 다 답하면 첫 피드부터 맞춤 추천. 설문 답은 리포트 열림 수에서 제외
 - [ ] 마이그레이션 `20261111000000_onboarding_source.sql` 대시보드에서 실행 (impressions.source에 onboarding 추가)
 - [x] 피드 카드에 관련 학과 `majors` 추가
+- [x] 직업 로드맵 `GET /me/roadmap` (저장한 직업 카드마다) · `GET /me/roadmap/{job_id}` (미리보기). 단계: 지금 해 볼 수 있는 일 → 키워 볼 능력 → 진학 준비 → 자격과 진출, 커리어넷 원문 (`data/job_guides.json`, `scripts/build_job_guides.py`)
 - [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일
 - [ ] API 테스트 (Supabase 목킹)
