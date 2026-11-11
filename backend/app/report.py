@@ -4,7 +4,11 @@
 - 일하는 방식·가치: style/value 축 상위 2개
 - 어울리는 직업: 직업 카드와 코사인 유사도 상위 (싫어요 한 직업 제외)
 - 관련 학과: 상위 직업들의 학과를 유사도로 가중 합산 (직업마다 학과 수로 나눔)
+
+리포트는 성향을 만드는 반응(좋아요·저장·선택)이 MIN_SIGNAL개 이상이고 벡터가 0이 아닐 때 열린다.
+패스는 벡터를 바꾸지 않고, 0에서 시작한 벡터는 싫어요로도 0에 머물기 때문에 이 둘은 세지 않는다.
 """
+import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -12,8 +16,10 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from app.content import Attribute, ContentStore
-from app.recommend.rank import COLD_START_REACTIONS
+from app.recommend.vector import Reaction
 
+MIN_SIGNAL = 5
+SIGNAL_REACTIONS = {Reaction.LIKE.value, Reaction.SAVE.value, Reaction.CHOOSE.value}
 N_INTERESTS = 2
 N_STRENGTHS = 2
 N_JOBS = 5
@@ -52,13 +58,14 @@ class JobMatch:
     field: str | None
     majors: list[str]
     score: float
+    summary: str = ""
 
 
 @dataclass
 class Report:
     n_reactions: int
     ready: bool
-    remaining: int                                  # 리포트가 열리기까지 남은 반응 수
+    remaining: int                                  # 리포트가 열리기까지 더 필요한 좋아요·저장·선택 수
     top_interests: list[Attribute] = field(default_factory=list)
     strengths: list[Attribute] = field(default_factory=list)
     summary: str = ""
@@ -89,6 +96,18 @@ def _summary(interests: list[Attribute], strengths: list[Attribute]) -> str:
     return " ".join(parts)
 
 
+FIRST_SENTENCE = re.compile(r"^(.+?[.!?])(?:\s|$)")
+MAX_SUMMARY = 100     # 첫 문장이 이보다 길면 자른다 (전체 552개 중 56개)
+
+
+def first_sentence(text: str | None) -> str:
+    """직업 설명의 첫 문장. 문장 끝을 못 찾거나 너무 길면 잘라서 말줄임표."""
+    text = " ".join((text or "").split())
+    match = FIRST_SENTENCE.match(text)
+    sentence = match[1] if match else text
+    return sentence if len(sentence) <= MAX_SUMMARY else sentence[: MAX_SUMMARY - 1].rstrip() + "…"
+
+
 def match_jobs(content: ContentStore, vector: np.ndarray, exclude_jobs: Iterable[int] = (), k: int = N_JOBS) -> list[JobMatch]:
     norm = float(np.linalg.norm(vector))
     if norm == 0:
@@ -107,7 +126,9 @@ def match_jobs(content: ContentStore, vector: np.ndarray, exclude_jobs: Iterable
     for job_id, score in ranked:
         job = content.jobs.get(job_id)
         if job is not None:
-            matches.append(JobMatch(job_id, job.name, job.field, list(job.majors), round(score, 3)))
+            matches.append(
+                JobMatch(job_id, job.name, job.field, list(job.majors), round(score, 3), first_sentence(job.summary))
+            )
     return matches
 
 
@@ -126,12 +147,14 @@ def build_report(
     n_reactions: int,
     reactions: list[dict],
     *,
-    min_reactions: int = COLD_START_REACTIONS,
+    min_signal: int = MIN_SIGNAL,
 ) -> Report:
-    """reactions: [{card_id, reaction}, ...] — 싫어요 한 직업을 빼고 반응 수를 센다."""
-    counts = Counter(r["reaction"] for r in reactions)
-    if n_reactions < min_reactions:
-        return Report(n_reactions, False, min_reactions - n_reactions, reaction_counts=dict(counts))
+    """reactions: [{card_id, reaction}, ...] — 반응 종류를 세고, 싫어요 한 직업을 뺀다."""
+    counts = {r.value: 0 for r in Reaction} | Counter(r["reaction"] for r in reactions)
+    signal = sum(counts[r] for r in SIGNAL_REACTIONS)
+    if signal < min_signal or not np.any(vector > 0):
+        # 반응 수는 채웠는데 싫어요로 벡터가 0이 된 경우에도 1개는 더 필요하다고 안내
+        return Report(n_reactions, False, max(min_signal - signal, 1), reaction_counts=counts)
 
     disliked = set()
     for r in reactions:
@@ -152,5 +175,5 @@ def build_report(
         study_tips=[STUDY_TIPS[a.code] for a in interests],
         jobs=pool[:N_JOBS],
         majors=rank_majors(pool),
-        reaction_counts=dict(counts),
+        reaction_counts=counts,
     )

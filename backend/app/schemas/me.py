@@ -53,13 +53,14 @@ class ReportJob(BaseModel):
     name: str
     field: str | None
     majors: list[str]
-    score: float                 # 성향과 직업 카드의 코사인 유사도 (0~1)
+    score: float                 # 성향과 직업 카드의 코사인 유사도 (0~1). 정렬용, 화면 표시는 권장하지 않음
+    summary: str                 # 직업 설명 첫 문장
 
 
 class ReportResponse(BaseModel):
     n_reactions: int
     ready: bool                  # false면 아래 분석 항목은 비어 있고 remaining만 의미가 있다
-    remaining: int               # 리포트가 열리기까지 더 반응해야 하는 카드 수
+    remaining: int               # 리포트가 열리기까지 더 필요한 좋아요·저장·선택 수 (패스·싫어요는 세지 않음)
     traits: list[Trait]          # GET /me와 같은 11개 축 점수
     top_interests: list[Trait]   # 흥미 유형 상위 2개
     strengths: list[Trait]       # 일하는 방식·가치 상위 2개
@@ -67,4 +68,4 @@ class ReportResponse(BaseModel):
     study_tips: list[str]
     jobs: list[ReportJob]
     majors: list[str]
-    reaction_counts: dict[str, int]
+    reaction_counts: dict[str, int]  # like·dislike·save·pass·choose 5개 키가 항상 있음

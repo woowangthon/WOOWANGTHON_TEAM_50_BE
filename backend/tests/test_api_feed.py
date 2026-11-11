@@ -323,6 +323,13 @@ def test_report_is_locked_until_enough_reactions(client, store):
     assert len(body["traits"]) == N_DIM
 
 
+def test_report_stays_locked_after_only_passes(client, store):
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "pass")
+    body = report(client)
+    assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 5)
+
+
 def test_report_for_new_user(client):
     body = report(client)
     assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 0, 5)
@@ -334,7 +341,8 @@ def test_report_after_reactions(client, store):
     react(client, store, JOB_CARDS[5], "dislike")
     body = report(client)
     assert body["ready"] and body["remaining"] == 0
-    assert body["reaction_counts"] == {"like": 5, "dislike": 1}
+    assert body["reaction_counts"] == {"like": 5, "dislike": 1, "save": 0, "pass": 0, "choose": 0}
+    assert all(j["summary"] for j in body["jobs"])
     assert 1 <= len(body["top_interests"]) <= 2
     assert {t["group"] for t in body["top_interests"]} == {"interest"}
     assert body["summary"] and len(body["study_tips"]) == len(body["top_interests"])

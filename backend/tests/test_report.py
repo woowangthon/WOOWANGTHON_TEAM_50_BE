@@ -1,10 +1,13 @@
 import numpy as np
 
 from app.content import N_DIM, load_content
-from app.report import JobMatch, build_report, match_jobs, rank_majors
+from app.report import MAX_SUMMARY, JobMatch, build_report, first_sentence, match_jobs, rank_majors
 
 CONTENT = load_content()
 CODES = {a.code: a.idx for a in CONTENT.attributes}
+
+
+LIKES = [{"card_id": "c0001", "reaction": "like"}] * 5
 
 
 def vector(**scores) -> np.ndarray:
@@ -15,7 +18,7 @@ def vector(**scores) -> np.ndarray:
 
 
 def test_top_interests_and_strengths_follow_scores():
-    r = build_report(CONTENT, vector(I=0.6, R=0.4, A=0.1, team=0.2, impact=0.5, field=0.1), 10, [])
+    r = build_report(CONTENT, vector(I=0.6, R=0.4, A=0.1, team=0.2, impact=0.5, field=0.1), 10, LIKES)
     assert [a.code for a in r.top_interests] == ["I", "R"]
     assert [a.code for a in r.strengths] == ["impact", "team"]
     assert r.summary.startswith("탐구형·현실형 카드에 자주 끌렸어요.")
@@ -24,16 +27,38 @@ def test_top_interests_and_strengths_follow_scores():
 
 
 def test_zero_axes_are_not_reported():
-    r = build_report(CONTENT, vector(S=0.5), 10, [])
+    r = build_report(CONTENT, vector(S=0.5), 10, LIKES)
     assert [a.code for a in r.top_interests] == ["S"] and r.strengths == []
     assert "사람을 돕고 가르치는 일에" in r.summary
 
 
-def test_zero_vector_report_is_ready_but_empty():
-    r = build_report(CONTENT, vector(), 10, [{"card_id": "c0001", "reaction": "pass"}] * 10)
-    assert r.ready and r.jobs == [] and r.majors == [] and r.top_interests == []
-    assert "아직" in r.summary
-    assert r.reaction_counts == {"pass": 10}
+def test_pass_and_dislike_do_not_open_report():
+    reactions = [{"card_id": "c0001", "reaction": "pass"}] * 6 + [{"card_id": "c0001", "reaction": "dislike"}] * 4
+    r = build_report(CONTENT, vector(), 10, reactions)
+    assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 5, [], "")
+    assert r.reaction_counts == {"like": 0, "dislike": 4, "save": 0, "pass": 6, "choose": 0}
+
+
+def test_signal_reactions_are_counted():
+    reactions = [{"card_id": "c0001", "reaction": x} for x in ["like", "save", "choose", "pass", "dislike"]]
+    assert build_report(CONTENT, vector(I=0.5), 5, reactions).remaining == 2
+
+
+def test_zero_vector_stays_locked_even_with_enough_reactions():
+    r = build_report(CONTENT, vector(), 10, LIKES)
+    assert (r.ready, r.remaining) == (False, 1)
+
+
+def test_jobs_have_one_line_summary():
+    r = build_report(CONTENT, vector(I=0.6, R=0.4), 10, LIKES)
+    assert all(j.summary and len(j.summary) <= MAX_SUMMARY for j in r.jobs)
+
+
+def test_first_sentence():
+    assert first_sentence("수의사는 동물을 치료합니다. 예방접종도 해요.") == "수의사는 동물을 치료합니다."
+    assert first_sentence(None) == ""
+    long = "가" * (MAX_SUMMARY + 20) + "."
+    assert first_sentence(long).endswith("…") and len(first_sentence(long)) == MAX_SUMMARY
 
 
 def test_matched_jobs_fit_the_vector():
@@ -54,7 +79,7 @@ def test_disliked_job_is_excluded_from_report():
     v = vector(R=1.0, field=0.5)
     best = match_jobs(CONTENT, v, k=1)[0]
     card = next(c for c in CONTENT.cards if c.job_id == best.job_id)
-    r = build_report(CONTENT, v, 10, [{"card_id": card.id, "reaction": "dislike"}])
+    r = build_report(CONTENT, v, 10, LIKES + [{"card_id": card.id, "reaction": "dislike"}])
     assert best.job_id not in {j.job_id for j in r.jobs}
 
 
@@ -69,5 +94,5 @@ def test_majors_are_weighted_by_job_score_and_major_count():
 
 
 def test_locked_report_counts_remaining():
-    r = build_report(CONTENT, vector(I=1.0), 3, [{"card_id": "c0001", "reaction": "like"}] * 3)
+    r = build_report(CONTENT, vector(I=1.0), 3, LIKES[:3])
     assert (r.ready, r.remaining, r.jobs, r.summary) == (False, 2, [], "")
