@@ -16,7 +16,7 @@ import numpy as np
 
 from app.content import Card, ContentStore
 
-Source = Literal["personalized", "random", "cold_start"]
+Source = Literal["personalized", "random", "cold_start", "onboarding"]
 
 EXPLORE_RATIO = 0.2          # 무작위 슬롯 비율
 COLD_START_REACTIONS = 5     # 이 개수 미만으로 반응했으면 콜드 스타트
@@ -83,10 +83,9 @@ def recommend(
 
     norm = float(np.linalg.norm(user))
     if n_reactions < cold_start_reactions or norm == 0:
-        return [
-            Recommendation(store.cards[i].id, "cold_start", None)
-            for i in _stratified(store, candidates, n, rng)
-        ]
+        # 처음에는 분야 구분 없이 전체 카드에서 무작위로 뽑는다
+        picks = rng.choice(candidates, size=n, replace=False)
+        return [Recommendation(store.cards[int(i)].id, "cold_start", None) for i in picks]
 
     scores = store.card_matrix[candidates] @ (user / norm)
     score_of = {i: float(s) for i, s in zip(candidates, scores)}
