@@ -18,3 +18,7 @@ services:
         sync: false
       - key: CONTENT_REVIEWED_ONLY
         value: "false"
+      - key: GEMINI_API_KEY        # 없으면 리포트는 점수 기반 문장만 쓴다
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash

@@ -12,6 +12,7 @@ from app.core.auth import TokenVerifier
 from app.core.config import Settings, get_settings
 from app.db.feed import FeedRepo
 from app.db.users import UserRepo
+from app.llm.report_writer import create_writer
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -27,6 +28,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         client = create_client(settings.supabase_url, service_key)
         app.state.users = UserRepo(client)
         app.state.feed = FeedRepo(client)
+        gemini_key = settings.gemini_api_key.get_secret_value()
+        app.state.report_writer = (
+            create_writer(gemini_key, settings.gemini_model, settings.gemini_timeout_s) if gemini_key else None
+        )
         yield
 
     app = FastAPI(title="FIND-ME API", lifespan=lifespan)

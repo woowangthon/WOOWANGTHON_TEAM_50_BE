@@ -420,3 +420,35 @@ def test_survey_answers_do_not_open_report(client, store):
     body = report(client)
     assert (body["ready"], body["n_reactions"], body["remaining"]) == (False, 5, 5)
     assert body["reaction_counts"]["choose"] == 5
+
+
+class FakeWriter:
+    def __init__(self, text):
+        self.text, self.calls = text, 0
+
+    def summarize(self, user_id, report):
+        self.calls += 1
+        return self.text
+
+
+def test_report_uses_ai_summary_when_available(client, store):
+    client.app.state.report_writer = writer = FakeWriter("AI가 쓴 설명이에요.")
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    body = report(client)
+    assert (body["summary"], body["summary_by_ai"]) == ("AI가 쓴 설명이에요.", True)
+    assert writer.calls == 1
+
+
+def test_report_falls_back_when_ai_fails(client, store):
+    client.app.state.report_writer = FakeWriter(None)
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    body = report(client)
+    assert body["summary"] and body["summary_by_ai"] is False
+
+
+def test_locked_report_does_not_call_ai(client, store):
+    client.app.state.report_writer = writer = FakeWriter("x")
+    react(client, store, JOB_CARDS[0], "like")
+    assert report(client)["summary_by_ai"] is False and writer.calls == 0

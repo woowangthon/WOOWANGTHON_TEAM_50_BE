@@ -65,6 +65,7 @@ class ReportResponse(BaseModel):
     top_interests: list[Trait]   # 흥미 유형 상위 2개
     strengths: list[Trait]       # 일하는 방식·가치 상위 2개
     summary: str
+    summary_by_ai: bool          # true면 summary를 Gemini가 썼다. false면 점수 기반 기본 문장 (키 없음·실패·잠김)
     study_tips: list[str]
     jobs: list[ReportJob]
     majors: list[str]
