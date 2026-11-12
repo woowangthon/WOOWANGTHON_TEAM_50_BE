@@ -47,3 +47,27 @@ class UserRepo:
             .data
         )
         return rows[0] if rows else None
+
+    def record_interest_survey(
+        self,
+        user_id: UUID,
+        version: int,
+        answers: dict[str, str],
+        vector: list[float],
+        expected_version: int | None,
+    ) -> str:
+        """'recorded' | 'duplicate' | 'conflict'. 마이그레이션 20261111010000_interest_survey 참고."""
+        return (
+            self._db.rpc(
+                "record_interest_survey",
+                {
+                    "p_user_id": str(user_id),
+                    "p_version": version,
+                    "p_answers": answers,
+                    "p_vector": vector,
+                    "p_expected_version": expected_version,
+                },
+            )
+            .execute()
+            .data
+        )
