@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 
-from app.api import chat, feed, health, jobs, me, onboarding
+from app.api import chat, feed, health, interest_survey, jobs, me, onboarding
 from app.content import load_content
 from app.core.auth import TokenVerifier
 from app.core.config import Settings, get_settings
@@ -49,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(feed.router)
     app.include_router(onboarding.router)
     app.include_router(jobs.router)
+    app.include_router(interest_survey.router)
     app.include_router(chat.router)
     return app
 
