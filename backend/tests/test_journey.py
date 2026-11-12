@@ -71,9 +71,10 @@ def test_card_reason():
 def test_badges():
     got = {b["id"]: b["earned"] for b in badges(CONTENT, [], 0, False)}
     assert not any(got.values()) and len(got) == 7
-    log = [{"card_id": "c0001", "reaction": "save"}] * 3
-    got = {b["id"]: b["earned"] for b in badges(CONTENT, log, 3, True)}
+    log = [{"card_id": "c0001", "reaction": "like"}] * 3
+    got = {b["id"]: b["earned"] for b in badges(CONTENT, log, 3, True, n_saved=3)}
     assert got["first_step"] and got["collector"] and got["streak3"] and got["report"] and not got["streak7"]
+    assert not {b["id"]: b["earned"] for b in badges(CONTENT, log, 3, True, n_saved=2)}["collector"]
 
 
 # ---------- 직업 ----------

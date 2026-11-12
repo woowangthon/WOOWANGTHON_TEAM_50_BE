@@ -5,7 +5,9 @@
 - 어울리는 직업: 직업 카드와 코사인 유사도 상위 (싫어요 한 직업 제외)
 - 관련 학과: 상위 직업들의 학과를 유사도로 가중 합산 (직업마다 학과 수로 나눔)
 
-리포트는 성향을 만드는 반응(좋아요·저장·선택)이 MIN_SIGNAL개 이상이고 벡터가 0이 아닐 때 열린다.
+리포트는 성향을 만드는 반응(좋아요·선택)이 MIN_SIGNAL개 이상이고 벡터가 0이 아닐 때 열린다.
+최소 개수는 두지 않는다 (1개면 열림). 반응이 적을 때 결과가 거친 것은 화면 문구로 안내한다.
+저장은 반응이 아니라 북마크라 세지 않는다 (예전 save 반응 행은 그대로 센다).
 패스는 벡터를 바꾸지 않고, 0에서 시작한 벡터는 싫어요로도 0에 머물기 때문에 이 둘은 세지 않는다.
 가입 설문 답(app.onboarding)도 세지 않는다. 설문만 하고 바로 리포트가 열리지 않게 하기 위해서다.
 """
@@ -20,7 +22,7 @@ from app.content import Attribute, ContentStore
 from app.onboarding import ONBOARDING_CARD_IDS
 from app.recommend.vector import Reaction
 
-MIN_SIGNAL = 5
+MIN_SIGNAL = 1
 SIGNAL_REACTIONS = {Reaction.LIKE.value, Reaction.SAVE.value, Reaction.CHOOSE.value}
 N_INTERESTS = 2
 N_STRENGTHS = 2
