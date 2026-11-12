@@ -53,7 +53,8 @@ class ReportJob(BaseModel):
     name: str
     field: str | None
     majors: list[str]
-    score: float                 # 성향과 직업 카드의 코사인 유사도 (0~1). 정렬용, 화면 표시는 권장하지 않음
+    score: float                 # 성향과 직업 카드의 코사인 유사도 (0~1). 정렬용
+    match: int                   # 적합도 0~100 (score × 100). 화면에는 이 값을 쓴다
     summary: str                 # 직업 설명 첫 문장
 
 

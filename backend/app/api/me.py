@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,8 +12,10 @@ from app.core.auth import CurrentUser, get_current_user
 from app.db.feed import FeedRepo
 from app.db.users import ProfileExists, Row, UserRepo
 from app.llm.report_writer import ReportWriter
+from app.journey import DAILY_GOAL, KST, activity, badges, level, mission, persona
 from app.report import build_report
 from app.roadmap import build_roadmap, saved_job_ids
+from app.schemas.journey import JourneyResponse
 from app.schemas.me import (
     MeResponse,
     ProfileCreate,
@@ -111,7 +114,7 @@ def read_report(user: User, users: Users, feed: Feed, content: Content, writer: 
         summary=ai_summary or report.summary,
         summary_by_ai=ai_summary is not None,
         study_tips=report.study_tips,
-        jobs=[ReportJob(**vars(j)) for j in report.jobs],
+        jobs=[ReportJob(match=round(j.score * 100), **vars(j)) for j in report.jobs],
         majors=report.majors,
         reaction_counts=report.reaction_counts,
     )
@@ -142,3 +145,27 @@ def read_roadmap(job_id: int, user: User, users: Users, feed: Feed, content: Con
     if roadmap is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "job_not_found")
     return roadmap
+
+
+@router.get("/journey")
+def read_journey(user: User, users: Users, feed: Feed, content: Content) -> JourneyResponse:
+    """홈 화면용: 연속 접속 · 오늘 목표 · 레벨 · 성향 유형 · 오늘의 미션 · 배지."""
+    row = users.get_vector(user.id)
+    vector = np.asarray(row["vector"] if row else [0.0] * N_DIM, dtype=np.float32)
+    n_reactions = row["n_reactions"] if row else 0
+    reactions = feed.list_reactions(user.id)
+    now = datetime.now(KST)
+    streak, today_count = activity(reactions, now)
+    report = build_report(content, vector, n_reactions, reactions)
+    return JourneyResponse(
+        streak=streak,
+        today_count=today_count,
+        daily_goal=DAILY_GOAL,
+        n_reactions=n_reactions,
+        level=level(n_reactions),
+        persona=persona(content.attributes, vector),
+        report_ready=report.ready,
+        report_remaining=report.remaining,
+        mission=mission(content.attributes, vector, now.date()),
+        badges=badges(content, reactions, streak, report.ready),
+    )

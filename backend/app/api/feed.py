@@ -4,10 +4,11 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_content, get_feed, get_users
-from app.content import Card, ContentStore
+from app.content import Card, ContentStore, scale_attrs
 from app.core.auth import CurrentUser, get_current_user
 from app.db.feed import FeedRepo
 from app.db.users import Row, UserRepo
+from app.journey import DAILY_GOAL, activity, card_reason, gains
 from app.recommend.rank import DEFAULT_N, recommend
 from app.recommend.vector import apply_reaction, new_user_vector
 from app.schemas.feed import FeedCard, FeedResponse, OptionOut, ReactionCreate, ReactionResponse
@@ -34,15 +35,20 @@ def card_fields(card: Card, content: ContentStore) -> dict:
         "type": card.type,
         "title": card.title,
         "body": card.body,
+        "job_id": job.id if job else None,
         "job_name": job.name if job else None,
         "majors": job.majors if job else [],
         "options": [OptionOut(id=o.id, label=o.label) for o in card.options],
     }
 
 
-def _feed_card(impression: Row, content: ContentStore) -> FeedCard:
+def _feed_card(impression: Row, content: ContentStore, user: np.ndarray | None = None) -> FeedCard:
+    """user(성향 벡터)를 주면 '왜 이 카드?' 한 줄을 붙인다. 가입 설문처럼 이유가 필요 없으면 생략."""
     card = content.card(impression["card_id"])
-    return FeedCard(impression_id=impression["id"], source=impression["source"], **card_fields(card, content))
+    reason = None if user is None else card_reason(content.attributes, user, scale_attrs(card.attrs), impression["source"])
+    return FeedCard(
+        impression_id=impression["id"], source=impression["source"], reason=reason, **card_fields(card, content)
+    )
 
 
 @router.get("/feed")
@@ -63,18 +69,19 @@ def read_feed(
             pending.setdefault(i["card_id"], i)
     items = list(pending.values())[:n]
 
+    row = users.get_vector(user.id)
+    vector = _user_vector(row)
     if len(items) < n:
-        row = users.get_vector(user.id)
         recs = recommend(
             content,
-            _user_vector(row),
+            vector,
             row["n_reactions"] if row else 0,
             seen={i["card_id"] for i in impressions},
             n=n - len(items),
         )
         items += feed.create_impressions(user.id, recs)
 
-    return FeedResponse(cards=[_feed_card(i, content) for i in items])
+    return FeedResponse(cards=[_feed_card(i, content, vector) for i in items])
 
 
 @router.post("/reactions")
@@ -88,8 +95,9 @@ def create_reaction(
 
     for _ in range(MAX_ATTEMPTS):
         row = users.get_vector(user.id)
+        before = _user_vector(row)
         try:
-            vector = apply_reaction(content, _user_vector(row), card_id, body.reaction, body.option_id)
+            vector = apply_reaction(content, before, card_id, body.reaction, body.option_id)
         except ValueError:
             raise HTTPException(422, "invalid_reaction") from None
 
@@ -103,6 +111,16 @@ def create_reaction(
             row["version"] if row else None,
         )
         if result != "conflict":
-            return ReactionResponse(status=result)
+            # ponytail: 오늘 반응 수를 세려고 반응 로그를 통째로 읽는다. 사용자당 수천 건이 넘으면 날짜 조건 쿼리로
+            streak, today_count = activity(feed.list_reactions(user.id))
+            recorded = result == "recorded"
+            return ReactionResponse(
+                status=result,
+                gains=gains(content.attributes, before, vector) if recorded else [],
+                today_count=today_count,
+                daily_goal=DAILY_GOAL,
+                streak=streak,
+                goal_reached=recorded and today_count == DAILY_GOAL,
+            )
 
     raise HTTPException(status.HTTP_409_CONFLICT, "reaction_conflict")

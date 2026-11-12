@@ -1,4 +1,5 @@
 import time
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -70,7 +71,7 @@ class FakeStore:
             return "duplicate"
         self.reactions[str(impression_id)] = {"reaction": reaction, "option_id": option_id}
         self.log.append({"user_id": user_id, "card_id": card_id, "reaction": reaction,
-                         "created_at": f"2026-11-10T00:00:{len(self.log):02d}+00:00"})
+                         "created_at": (datetime(2026, 11, 10, tzinfo=UTC) + timedelta(seconds=len(self.log))).isoformat()})
         row = self.vectors.get(user_id, {"n_reactions": 0, "version": 0})
         assert expected_version == (row["version"] if user_id in self.vectors else None)
         self.vectors[user_id] = {
@@ -203,7 +204,7 @@ def test_feed_turns_personalized_after_enough_reactions(client, store):
 def test_like_creates_vector_from_card(client, store):
     res = post_reaction(client, impression_for(store, JOB_CARD), "like")
     row = store.vectors[USER_ID]
-    assert res.json() == {"status": "recorded"}
+    assert res.json()["status"] == "recorded"
     assert row["n_reactions"] == 1
     assert any(v > 0 for v in row["vector"])
 
@@ -218,7 +219,7 @@ def test_choose_records_option(client, store):
 def test_second_reaction_passes_current_version(client, store):
     post_reaction(client, impression_for(store, JOB_CARD), "like")
     res = post_reaction(client, impression_for(store, CHOICE_CARD), "pass")
-    assert res.json() == {"status": "recorded"}
+    assert res.json()["status"] == "recorded"
     assert store.vectors[USER_ID]["version"] == 2
 
 
@@ -228,13 +229,13 @@ def test_duplicate_reaction_does_not_change_vector(client, store):
     before = dict(store.vectors[USER_ID])
     res = post_reaction(client, impression, "like")
     assert res.status_code == 200
-    assert res.json() == {"status": "duplicate"}
+    assert res.json()["status"] == "duplicate"
     assert store.vectors[USER_ID] == before
 
 
 def test_conflict_is_retried(client, store):
     store.conflicts_left = 2
-    assert post_reaction(client, impression_for(store, JOB_CARD), "like").json() == {"status": "recorded"}
+    assert post_reaction(client, impression_for(store, JOB_CARD), "like").json()["status"] == "recorded"
 
 
 def test_gives_up_after_repeated_conflicts(client, store):
@@ -500,3 +501,57 @@ def test_single_roadmap_marks_saved_job(client, store):
 def test_unknown_job_roadmap_is_404(client):
     res = client.get("/me/roadmap/999999", headers=headers())
     assert (res.status_code, res.json()) == (404, {"detail": "job_not_found"})
+
+
+# ---------- 여정 · 직업 탐색 ----------
+
+def test_reaction_returns_gains_and_daily_progress(client, store):
+    body = post_reaction(client, impression_for(store, JOB_CARD), "like").json()
+    assert body["status"] == "recorded" and body["daily_goal"] == 5
+    assert body["gains"] and all(g["delta"] >= 1 for g in body["gains"])
+    again = post_reaction(client, store.impressions[-1]["id"], "like").json()
+    assert again["status"] == "duplicate" and again["gains"] == []
+
+
+def test_feed_cards_carry_job_id_and_reason_field(client, store):
+    cards = feed(client, 10)
+    job_card = next(c for c in cards if c["type"] == "job_day")
+    assert job_card["job_id"] in CONTENT.jobs and job_card["reason"] is None    # 콜드 스타트는 이유 없음
+
+
+def journey(client) -> dict:
+    return client.get("/me/journey", headers=headers()).json()
+
+
+def test_journey_for_new_and_active_user(client, store):
+    body = journey(client)
+    assert (body["streak"], body["today_count"], body["daily_goal"]) == (0, 0, 5)
+    assert body["persona"] is None and body["level"]["n"] == 1 and body["mission"]["text"]
+    assert not body["report_ready"] and body["report_remaining"] == 5
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    body = journey(client)
+    assert body["report_ready"] and body["level"]["n"] == 2 and body["persona"]["name"]
+    assert {b["id"] for b in body["badges"] if b["earned"]} >= {"first_step", "report"}
+
+
+def test_jobs_list_and_detail(client, store):
+    res = client.get("/jobs", headers=headers(), params={"limit": 5}).json()
+    assert len(res["jobs"]) == 5 and len(res["fields"]) == 10 and res["jobs"][0]["match"] is None
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    jobs = client.get("/jobs", headers=headers(), params={"limit": 5}).json()["jobs"]
+    assert jobs[0]["match"] >= jobs[-1]["match"] > 0
+    detail = client.get(f"/jobs/{jobs[0]['job_id']}", headers=headers()).json()
+    assert detail["match"] == jobs[0]["match"] and detail["similar"]
+    roadmap = client.get(f"/me/roadmap/{jobs[0]['job_id']}", headers=headers()).json()
+    assert detail["steps"] == roadmap["steps"]                                   # 직업 상세와 로드맵은 같은 단계를 쓴다
+    assert client.get("/jobs/999999", headers=headers()).status_code == 404
+    assert client.get("/jobs").status_code == 401
+
+
+def test_report_jobs_have_match_percent(client, store):
+    for card in JOB_CARDS[:5]:
+        react(client, store, card, "like")
+    jobs = report(client)["jobs"]
+    assert all(j["match"] == round(j["score"] * 100) for j in jobs)

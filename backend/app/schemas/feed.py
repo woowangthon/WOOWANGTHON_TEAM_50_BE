@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.recommend.rank import Source
 from app.recommend.vector import Reaction
+from app.schemas.journey import Gain
 
 
 class OptionOut(BaseModel):
@@ -17,6 +18,7 @@ class CardOut(BaseModel):
     type: str
     title: str
     body: str
+    job_id: int | None           # 직업 카드면 GET /jobs/{job_id} 로 상세를 볼 수 있다
     job_name: str | None
     majors: list[str]            # 직업 카드의 관련 학과. 선택형이거나 정보가 없으면 []
     options: list[OptionOut]
@@ -25,6 +27,7 @@ class CardOut(BaseModel):
 class FeedCard(CardOut):
     impression_id: UUID          # POST /reactions에 그대로 보낸다
     source: Source
+    reason: str | None = None    # '왜 이 카드?' 한 줄. 콜드 스타트는 null
 
 
 class FeedResponse(BaseModel):
@@ -39,6 +42,11 @@ class ReactionCreate(BaseModel):
 
 class ReactionResponse(BaseModel):
     status: Literal["recorded", "duplicate"]
+    gains: list[Gain] = []       # 이번 반응으로 오른 성향 (최대 2개)
+    today_count: int = 0         # 오늘 반응한 카드 수 (한국 시간)
+    daily_goal: int = 0
+    streak: int = 0
+    goal_reached: bool = False   # 이번 반응으로 오늘 목표를 막 채웠으면 true
 
 
 class OnboardingResponse(BaseModel):
