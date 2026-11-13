@@ -48,6 +48,18 @@ class UserRepo:
         )
         return rows[0] if rows else None
 
+    def get_interest_survey(self, user_id: UUID) -> Row | None:
+        """설문을 아직 안 했으면 None. [{version, answers, created_at}]"""
+        rows = (
+            self._db.table("interest_surveys")
+            .select("version, answers, created_at")
+            .eq("user_id", str(user_id))
+            .limit(1)
+            .execute()
+            .data
+        )
+        return rows[0] if rows else None
+
     def record_interest_survey(
         self,
         user_id: UUID,
