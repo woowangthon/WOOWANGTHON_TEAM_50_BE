@@ -76,6 +76,8 @@
 - [x] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용 (2026-11-13, 5개 전부 적용 확인)
 - [x] 배포 점검 `python -m scripts.check_deploy --api https://findme-api-rxg3.onrender.com --origin <프론트 주소>` 13/13 (2026-11-13, origin은 localhost)
 - [ ] 프론트 배포 후 Render `CORS_ORIGINS`에 프론트 주소 추가
+- [x] 카드 검수 114장 (2026-11-13, 직업 100 = 분야별 10 · 선택형 14) — `data/raw/review/demo_cards*.csv` → `review_cards import`
+- [ ] Render `CONTENT_REVIEWED_ONLY=true`
 - [x] 시드 스크립트 `scripts/seed_demo.py` (2026-11-13, 배포 서버에서 임시 계정으로 검증 후 삭제)
 - [ ] 심사위원 계정 만들기 — 카드 검수·`CONTENT_REVIEWED_ONLY` 결정·이 브랜치 배포 뒤에 `--reset`으로 실행
 - [x] `GET /interest-survey` (설문 완료 여부) — FE가 localStorage 대신 이걸로 설문 화면을 건너뛰어야 새 브라우저에서도 설문이 다시 안 뜸
