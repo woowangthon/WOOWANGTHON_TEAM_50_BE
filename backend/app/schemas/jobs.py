@@ -27,6 +27,11 @@ class JobTrait(BaseModel):
     mine: int                    # 내 성향 0~100
 
 
+class JobQuestion(BaseModel):
+    id: str                      # POST /jobs/{job_id}/ask 의 question_id
+    label: str
+
+
 class JobDetailResponse(BaseModel):
     job_id: int
     name: str
@@ -37,3 +42,4 @@ class JobDetailResponse(BaseModel):
     traits: list[JobTrait]
     steps: list[RoadmapStep]     # GET /me/roadmap/{job_id} 의 steps 와 같다 (커리어넷 원문)
     similar: list[JobSummary]
+    questions: list[JobQuestion]  # AI에게 물어볼 수 있는 질문
