@@ -1,6 +1,6 @@
 # 백엔드 작업 체크리스트
 
-> 기준: README.md. 완료 항목은 `[x]`, 진행 중은 `[~]`. 담당은 README 10절(BE1 = API·DB·로그·푸시, BE2 = 추천·LLM).
+> 기준: README.md. 완료 항목은 `[x]`, 진행 중은 `[~]`. 담당은 README 10절(BE1 = API·DB·로그, BE2 = 추천·LLM).
 
 ## 0. 기반 · 데이터 정의
 - [x] 11차원 정의 `backend/data/attributes.csv` (2026-11-08 stability 삭제, 12 → 11)
@@ -10,7 +10,7 @@
 - [x] 샘플 카드 3장 (`job_day` / `a_vs_b` / `situation`)
 - [x] 콘텐츠 테스트 (`tests/test_content.py`)
 - [x] `.env.example`
-- [~] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·pywebpush·google-genai 추가 (pywebpush 남음)
+- [x] `requirements.txt`에 FastAPI·uvicorn·supabase·httpx·pyjwt·google-genai 추가 (pywebpush는 웹 푸시 미적용으로 뺌)
 
 ## 1. 콘텐츠 수집 · 생성 (BE2)
 - [x] 커리어넷 직업백과 수집 스크립트 `scripts/fetch_careernet.py` (API 에러 응답 시 즉시 중단)
@@ -55,11 +55,10 @@
 - [x] `GET /me/report` — 점수 기반 (흥미 유형 상위 2 · 방식/가치 상위 2 · 어울리는 직업 5 · 관련 학과 5 · 공부 팁), 좋아요·선택이 1개 이상이면 열림 (2026-11-11 최소 5개 → 1개, FE 요청)
 - [x] `GET /me/saved` — 저장한 카드 목록 (최신 순)
 - [x] 저장을 반응에서 분리 (2026-11-11, FE 요청): `saved_cards` 테이블 · `PUT·DELETE /me/saved/{card_id}` · 피드 카드 `saved` · `POST /reactions`의 `save`는 422. 기존 save 반응은 마이그레이션으로 옮김
-- [x] `GET /onboarding` — 가입 설문 (흥미 유형을 묻는 선택형 카드 5장, 답은 `POST /reactions`). 다 답하면 첫 피드부터 맞춤 추천. 설문 답은 리포트 열림 수에서 제외
-- [x] 마이그레이션 `20261111000000_onboarding_source.sql` 적용 확인 (2026-11-12, `scripts/check_deploy.py`)
+- [x] ~~`GET /onboarding` (선택형 카드 5장 가입 설문)~~ — 2026-11-13 삭제. FE가 호출하지 않고 12문항 관심사 설문(`POST /interest-survey`)만 쓰기로 결정. 카드 c0160~c0164는 일반 피드 카드로 남음
+- [x] 마이그레이션 `20261111000000_onboarding_source.sql` 적용 확인 (2026-11-12, `scripts/check_deploy.py`). `/onboarding` 삭제 후에도 마이그레이션은 이력이라 그대로 둔다 (DB 제약에 `onboarding` 값이 남아 있지만 쓰지 않음)
 - [x] 피드 카드에 관련 학과 `majors` 추가
 - [x] 직업 로드맵 `GET /me/roadmap` (저장한 직업 카드마다, `saved_cards` 기준) · `GET /me/roadmap/{job_id}` (미리보기). 단계: 지금 해 볼 수 있는 일 → 키워 볼 능력 → 진학 준비 → 자격과 진출, 커리어넷 원문 (`data/job_guides.json`, `scripts/build_job_guides.py`)
-- [ ] `POST /push/subscribe`
 - [ ] 요청·응답 스키마 (`app/schemas/`), 에러 형식 통일
 - [ ] API 테스트 (Supabase 목킹)
 
@@ -69,15 +68,18 @@
 - [ ] "왜 이 카드?" 추천 이유 문장
 - [ ] 결과 캐싱 (같은 벡터·카드면 재호출 안 함)
 
-## 6. 웹 푸시 (BE1)
-- [ ] VAPID 키 생성
-- [ ] "오늘의 카드" 발송 작업 (Render cron 등), 만료 구독 정리
+## 6. 웹 푸시 — 미적용 (2026-11-13 결정)
+- ~~`POST /push/subscribe` · VAPID 키 · "오늘의 카드" 발송 작업~~ — 마감 전 넣지 않기로 함. README 9절 "미적용"에 명시. `push_subscriptions` 테이블은 초기 마이그레이션 이력이라 남겨 둠 (쓰지 않음)
 
 ## 7. 배포 · 마무리
 - [x] Render 배포 — https://findme-api-rxg3.onrender.com (2026-11-13, `render.yaml` Blueprint, 환경 변수 등록 완료)
 - [x] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용 (2026-11-13, 5개 전부 적용 확인)
 - [x] 배포 점검 `python -m scripts.check_deploy --api https://findme-api-rxg3.onrender.com --origin <프론트 주소>` 13/13 (2026-11-13, origin은 localhost)
 - [ ] 프론트 배포 후 Render `CORS_ORIGINS`에 프론트 주소 추가
+- [x] 시드 스크립트 `scripts/seed_demo.py` (2026-11-13, 배포 서버에서 임시 계정으로 검증 후 삭제)
+- [ ] 심사위원 계정 만들기 — 카드 검수·`CONTENT_REVIEWED_ONLY` 결정·이 브랜치 배포 뒤에 `--reset`으로 실행
+- [x] `GET /interest-survey` (설문 완료 여부) — FE가 localStorage 대신 이걸로 설문 화면을 건너뛰어야 새 브라우저에서도 설문이 다시 안 뜸
+- [x] keepalive (`.github/workflows/keepalive.yml`, 10분마다 `/health`)
 - [ ] 프론트와 API 계약 확정 (`/docs` Swagger 공유)
-- [ ] 맞춤 vs 무작위 반응률 비교 쿼리
+- [x] 맞춤 vs 무작위 반응률 비교 쿼리 `supabase/queries/source_reaction_rates.sql` (끌려요 비율 · 반응률 · 저장률 · z값, E2E 계정 제외). 2026-11-13 기준 실제 데이터 0건 → 테스터 데이터 수집 필요
 - [ ] README 7절(실행 방법)·9절(AI 활용 범위 TBD) 채우기
