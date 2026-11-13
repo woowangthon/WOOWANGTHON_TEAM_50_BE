@@ -39,8 +39,8 @@
 - [x] 카드 소진 정책: 다시 보여 주지 않고 빈 목록 반환. 반응하지 않은 카드는 소진하지 않고 다음 피드에 재노출
 
 ## 3. DB · 인증 (BE1)
-- [ ] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
-- [ ] 마이그레이션 `supabase/migrations/`: `profiles`, `user_vectors`, `impressions`, `reactions`, `push_subscriptions`
+- [x] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
+- [x] 마이그레이션 `supabase/migrations/`: `profiles`, `user_vectors`, `impressions`, `reactions`, `push_subscriptions`
 - [ ] RLS 정책 (service role만 쓰기)
 - [x] Supabase JWT 검증 의존성 (`app/core/auth.py`, JWKS · ES256)
 - [x] 설정 로딩 (`app/core/config.py`, pydantic-settings)
@@ -56,7 +56,7 @@
 - [x] `GET /me/saved` — 저장한 카드 목록 (최신 순)
 - [x] 저장을 반응에서 분리 (2026-11-11, FE 요청): `saved_cards` 테이블 · `PUT·DELETE /me/saved/{card_id}` · 피드 카드 `saved` · `POST /reactions`의 `save`는 422. 기존 save 반응은 마이그레이션으로 옮김
 - [x] `GET /onboarding` — 가입 설문 (흥미 유형을 묻는 선택형 카드 5장, 답은 `POST /reactions`). 다 답하면 첫 피드부터 맞춤 추천. 설문 답은 리포트 열림 수에서 제외
-- [ ] 마이그레이션 `20261111000000_onboarding_source.sql` 대시보드에서 실행 (impressions.source에 onboarding 추가)
+- [x] 마이그레이션 `20261111000000_onboarding_source.sql` 적용 확인 (2026-11-12, `scripts/check_deploy.py`)
 - [x] 피드 카드에 관련 학과 `majors` 추가
 - [x] 직업 로드맵 `GET /me/roadmap` (저장한 직업 카드마다, `saved_cards` 기준) · `GET /me/roadmap/{job_id}` (미리보기). 단계: 지금 해 볼 수 있는 일 → 키워 볼 능력 → 진학 준비 → 자격과 진출, 커리어넷 원문 (`data/job_guides.json`, `scripts/build_job_guides.py`)
 - [ ] `POST /push/subscribe`
@@ -74,7 +74,10 @@
 - [ ] "오늘의 카드" 발송 작업 (Render cron 등), 만료 구독 정리
 
 ## 7. 배포 · 마무리
-- [~] Render 배포 설정, 환경 변수 등록 — `render.yaml` 추가, 서비스 생성과 환경 변수 등록 남음
+- [x] Render 배포 — https://findme-api-rxg3.onrender.com (2026-11-13, `render.yaml` Blueprint, 환경 변수 등록 완료)
+- [x] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용 (2026-11-13, 5개 전부 적용 확인)
+- [x] 배포 점검 `python -m scripts.check_deploy --api https://findme-api-rxg3.onrender.com --origin <프론트 주소>` 13/13 (2026-11-13, origin은 localhost)
+- [ ] 프론트 배포 후 Render `CORS_ORIGINS`에 프론트 주소 추가
 - [ ] 프론트와 API 계약 확정 (`/docs` Swagger 공유)
 - [ ] 맞춤 vs 무작위 반응률 비교 쿼리
 - [ ] README 7절(실행 방법)·9절(AI 활용 범위 TBD) 채우기
