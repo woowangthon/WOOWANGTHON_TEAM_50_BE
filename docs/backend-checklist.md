@@ -39,8 +39,8 @@
 - [x] 카드 소진 정책: 다시 보여 주지 않고 빈 목록 반환. 반응하지 않은 카드는 소진하지 않고 다음 피드에 재노출
 
 ## 3. DB · 인증 (BE1)
-- [ ] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
-- [ ] 마이그레이션 `supabase/migrations/`: `profiles`, `user_vectors`, `impressions`, `reactions`, `push_subscriptions`
+- [x] Supabase 프로젝트 생성, 키를 `.env`·Render에 설정
+- [x] 마이그레이션 `supabase/migrations/`: `profiles`, `user_vectors`, `impressions`, `reactions`, `push_subscriptions`
 - [ ] RLS 정책 (service role만 쓰기)
 - [x] Supabase JWT 검증 의존성 (`app/core/auth.py`, JWKS · ES256)
 - [x] 설정 로딩 (`app/core/config.py`, pydantic-settings)
@@ -74,9 +74,10 @@
 - [ ] "오늘의 카드" 발송 작업 (Render cron 등), 만료 구독 정리
 
 ## 7. 배포 · 마무리
-- [~] Render 배포 설정, 환경 변수 등록 — `render.yaml` 추가, 서비스 생성과 환경 변수 등록 남음
+- [x] Render 배포 — https://findme-api-rxg3.onrender.com (2026-11-13, `render.yaml` Blueprint, 환경 변수 등록 완료)
 - [x] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용 (2026-11-13, 5개 전부 적용 확인)
-- [ ] 배포 점검 `python -m scripts.check_deploy --api <Render 주소> --origin <프론트 주소>` 전부 O
+- [x] 배포 점검 `python -m scripts.check_deploy --api https://findme-api-rxg3.onrender.com --origin <프론트 주소>` 13/13 (2026-11-13, origin은 localhost)
+- [ ] 프론트 배포 후 Render `CORS_ORIGINS`에 프론트 주소 추가
 - [ ] 프론트와 API 계약 확정 (`/docs` Swagger 공유)
 - [ ] 맞춤 vs 무작위 반응률 비교 쿼리
 - [ ] README 7절(실행 방법)·9절(AI 활용 범위 TBD) 채우기
