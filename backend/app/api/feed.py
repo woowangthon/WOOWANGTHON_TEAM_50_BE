@@ -10,7 +10,7 @@ from app.db.feed import FeedRepo
 from app.db.users import Row, UserRepo
 from app.journey import DAILY_GOAL, activity, card_reason, gains
 from app.recommend.rank import DEFAULT_N, recommend
-from app.recommend.vector import apply_reaction, new_user_vector
+from app.recommend.vector import Reaction, apply_reaction, new_user_vector
 from app.schemas.feed import FeedCard, FeedResponse, OptionOut, ReactionCreate, ReactionResponse
 
 router = APIRouter(tags=["feed"])
@@ -42,12 +42,18 @@ def card_fields(card: Card, content: ContentStore) -> dict:
     }
 
 
-def _feed_card(impression: Row, content: ContentStore, user: np.ndarray | None = None) -> FeedCard:
+def _feed_card(
+    impression: Row, content: ContentStore, user: np.ndarray | None = None, saved: bool = False
+) -> FeedCard:
     """user(성향 벡터)를 주면 '왜 이 카드?' 한 줄을 붙인다. 가입 설문처럼 이유가 필요 없으면 생략."""
     card = content.card(impression["card_id"])
     reason = None if user is None else card_reason(content.attributes, user, scale_attrs(card.attrs), impression["source"])
     return FeedCard(
-        impression_id=impression["id"], source=impression["source"], reason=reason, **card_fields(card, content)
+        impression_id=impression["id"],
+        source=impression["source"],
+        reason=reason,
+        saved=saved,
+        **card_fields(card, content),
     )
 
 
@@ -81,13 +87,17 @@ def read_feed(
         )
         items += feed.create_impressions(user.id, recs)
 
-    return FeedResponse(cards=[_feed_card(i, content, vector) for i in items])
+    saved = {s["card_id"] for s in feed.list_saved(user.id)}
+    return FeedResponse(cards=[_feed_card(i, content, vector, i["card_id"] in saved) for i in items])
 
 
 @router.post("/reactions")
 def create_reaction(
     body: ReactionCreate, user: User, users: Users, feed: Feed, content: Content
 ) -> ReactionResponse:
+    if body.reaction is Reaction.SAVE:
+        # 저장은 반응이 아니다 (성향을 바꾸지 않고 취소할 수 있는 북마크). PUT /me/saved/{card_id}
+        raise HTTPException(422, "invalid_reaction")
     impression = feed.get_impression(body.impression_id, user.id)
     if impression is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "impression_not_found")

@@ -71,11 +71,11 @@ def build_roadmap(content: ContentStore, job_id: int, vector, saved_at: datetime
     )
 
 
-def saved_job_ids(content: ContentStore, reactions: list[dict]) -> list[tuple[int, str]]:
-    """reactions(최신 순)에서 저장한 직업 카드의 (job_id, 저장 시각). 같은 직업은 한 번만."""
+def saved_job_ids(content: ContentStore, saved: list[dict]) -> list[tuple[int, str]]:
+    """저장 목록(FeedRepo.list_saved, 최신 순)에서 직업 카드의 (job_id, 저장 시각). 같은 직업은 한 번만."""
     out: dict[int, str] = {}
-    for r in reactions:
-        card = content.card(r["card_id"])
-        if r["reaction"] == "save" and card is not None and card.job_id is not None:
-            out.setdefault(card.job_id, r["created_at"])
+    for s in saved:
+        card = content.card(s["card_id"])
+        if card is not None and card.job_id is not None:
+            out.setdefault(card.job_id, s["created_at"])
     return list(out.items())

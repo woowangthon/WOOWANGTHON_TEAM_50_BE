@@ -28,6 +28,7 @@ class FeedCard(CardOut):
     impression_id: UUID          # POST /reactions에 그대로 보낸다
     source: Source
     reason: str | None = None    # '왜 이 카드?' 한 줄. 콜드 스타트는 null
+    saved: bool = False          # 이미 저장한 카드인지 (PUT·DELETE /me/saved/{card_id})
 
 
 class FeedResponse(BaseModel):
@@ -36,7 +37,7 @@ class FeedResponse(BaseModel):
 
 class ReactionCreate(BaseModel):
     impression_id: UUID
-    reaction: Reaction
+    reaction: Reaction           # save는 받지 않는다 (422). 저장은 PUT /me/saved/{card_id}
     option_id: str | None = None # reaction이 choose일 때만
 
 
