@@ -33,6 +33,10 @@ class FakeUsers:
     def get_vector(self, user_id):
         return self.vectors.get(user_id)
 
+    def get_interest_survey(self, user_id):
+        s = self.surveys.get(user_id)
+        return {**s, "created_at": "2026-11-13T00:00:00+00:00"} if s else None
+
     def record_interest_survey(self, user_id, version, answers, vector, expected_version):
         if self.conflicts_left:
             self.conflicts_left -= 1
@@ -139,3 +143,17 @@ def test_invalid_survey_is_422_and_not_stored(client, users, body):
     res = post(client, body)
     assert res.status_code == 422 and res.json() == {"detail": "invalid_survey"}
     assert USER_ID not in users.surveys
+
+
+def test_status_before_and_after_survey(client):
+    res = client.get("/interest-survey", headers=headers())
+    assert res.status_code == 200
+    assert res.json() == {"done": False, "version": None, "answers": None, "created_at": None}
+    post(client, {"version": 1, "answers": answers("like")})
+    body = client.get("/interest-survey", headers=headers()).json()
+    assert body["done"] is True and body["version"] == 1 and body["answers"] == answers("like")
+    assert body["created_at"]
+
+
+def test_status_requires_token(client):
+    assert client.get("/interest-survey").status_code == 401

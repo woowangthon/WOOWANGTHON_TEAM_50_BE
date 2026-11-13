@@ -16,7 +16,7 @@ import numpy as np
 
 from app.content import Card, ContentStore
 
-Source = Literal["personalized", "random", "cold_start", "onboarding"]
+Source = Literal["personalized", "random", "cold_start"]
 
 EXPLORE_RATIO = 0.2          # 무작위 슬롯 비율
 COLD_START_REACTIONS = 5     # 이 개수 미만으로 반응했으면 콜드 스타트

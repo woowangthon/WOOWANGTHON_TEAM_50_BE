@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 import numpy as np
@@ -24,8 +25,24 @@ class InterestSurveyCreate(BaseModel):
     answers: dict[str, str]      # { 문항 ID: strongly_dislike | dislike | neutral | like | strongly_like }
 
 
+class InterestSurveyStatus(BaseModel):
+    done: bool                   # true면 이미 설문을 했다 → 프론트는 설문 화면을 건너뛴다
+    version: int | None
+    answers: dict[str, str] | None
+    created_at: datetime | None
+
+
 class InterestSurveyResponse(BaseModel):
     status: Literal["recorded", "duplicate"]   # duplicate: 이미 반영한 사용자 (벡터 그대로)
+
+
+@router.get("/interest-survey")
+def read_interest_survey(user: User, users: Users) -> InterestSurveyStatus:
+    """설문을 했는지. 다른 브라우저·기기에서 로그인해도 설문을 다시 보여 주지 않게 프론트가 확인한다."""
+    row = users.get_interest_survey(user.id)
+    if row is None:
+        return InterestSurveyStatus(done=False, version=None, answers=None, created_at=None)
+    return InterestSurveyStatus(done=True, **row)
 
 
 @router.post("/interest-survey")
