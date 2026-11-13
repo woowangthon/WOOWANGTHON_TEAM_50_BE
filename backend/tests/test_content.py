@@ -84,9 +84,23 @@ def test_duplicate_id_rejected(tmp_path):
         load_content(tmp_path)
 
 
-def test_reviewed_only_filters(tmp_path):
+def test_reviewed_only_keeps_only_reviewed_cards(tmp_path):
     shutil.copy(DATA / "attributes.csv", tmp_path)
-    shutil.copy(DATA / "cards.json", tmp_path)
+    deck = json.loads((DATA / "cards.json").read_text(encoding="utf-8"))
+    for i, card in enumerate(deck["cards"]):
+        card["reviewed"] = i < 2
+    (tmp_path / "cards.json").write_text(json.dumps(deck, ensure_ascii=False), encoding="utf-8")
+    store = load_content(tmp_path, reviewed_only=True)
+    assert [c.id for c in store.cards] == [c["id"] for c in deck["cards"][:2]]
+    assert len(load_content(tmp_path).cards) == len(deck["cards"])
+
+
+def test_reviewed_only_without_reviewed_cards_fails(tmp_path):
+    shutil.copy(DATA / "attributes.csv", tmp_path)
+    deck = json.loads((DATA / "cards.json").read_text(encoding="utf-8"))
+    for card in deck["cards"]:
+        card["reviewed"] = False
+    (tmp_path / "cards.json").write_text(json.dumps(deck, ensure_ascii=False), encoding="utf-8")
     with pytest.raises(ValueError, match="사용 가능한 카드가 없음"):
         load_content(tmp_path, reviewed_only=True)
 

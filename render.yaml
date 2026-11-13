@@ -16,8 +16,8 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
-      - key: CONTENT_REVIEWED_ONLY
-        value: "false"
+      - key: CONTENT_REVIEWED_ONLY   # 검수한 카드(reviewed: true)만 노출. 검수 0장이면 서버가 뜨지 않음
+        value: "true"
       - key: GEMINI_API_KEY        # 없으면 리포트는 점수 기반 문장만 쓴다
         sync: false
       - key: GEMINI_MODEL
