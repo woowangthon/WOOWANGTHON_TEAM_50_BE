@@ -48,10 +48,3 @@ class ReactionResponse(BaseModel):
     daily_goal: int = 0
     streak: int = 0
     goal_reached: bool = False   # 이번 반응으로 오늘 목표를 막 채웠으면 true
-
-
-class OnboardingResponse(BaseModel):
-    cards: list[FeedCard]        # 아직 답하지 않은 설문 카드, 보여 줄 순서대로
-    total: int                   # 설문 카드 전체 수
-    answered: int                # 이미 답한 수 (진행 막대용)
-    done: bool                   # true면 설문 완료 → 피드로 이동

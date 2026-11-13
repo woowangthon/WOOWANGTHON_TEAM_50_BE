@@ -9,7 +9,7 @@
 최소 개수는 두지 않는다 (1개면 열림). 반응이 적을 때 결과가 거친 것은 화면 문구로 안내한다.
 저장은 반응이 아니라 북마크라 세지 않는다 (예전 save 반응 행은 그대로 센다).
 패스는 벡터를 바꾸지 않고, 0에서 시작한 벡터는 싫어요로도 0에 머물기 때문에 이 둘은 세지 않는다.
-가입 설문 답(app.onboarding)도 세지 않는다. 설문만 하고 바로 리포트가 열리지 않게 하기 위해서다.
+관심사 설문(POST /interest-survey)은 반응이 아니라서 세지 않는다. 설문만 하고 바로 리포트가 열리지 않는다.
 """
 import re
 from collections import Counter, defaultdict
@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from app.content import Attribute, ContentStore
-from app.onboarding import ONBOARDING_CARD_IDS
 from app.recommend.vector import Reaction
 
 MIN_SIGNAL = 1
@@ -169,9 +168,7 @@ def build_report(
 ) -> Report:
     """reactions: [{card_id, reaction}, ...] — 반응 종류를 세고, 싫어요 한 직업을 뺀다."""
     counts = {r.value: 0 for r in Reaction} | Counter(r["reaction"] for r in reactions)
-    signal = sum(
-        1 for r in reactions if r["reaction"] in SIGNAL_REACTIONS and r["card_id"] not in ONBOARDING_CARD_IDS
-    )
+    signal = sum(1 for r in reactions if r["reaction"] in SIGNAL_REACTIONS)
     if signal < min_signal or not np.any(vector > 0):
         # 반응 수는 채웠는데 싫어요로 벡터가 0이 된 경우에도 1개는 더 필요하다고 안내
         return Report(n_reactions, False, max(min_signal - signal, 1), reaction_counts=counts)
