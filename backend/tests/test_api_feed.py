@@ -698,7 +698,8 @@ def test_chat_falls_back_to_records_without_ai(client, store):
 
 def test_chat_uses_ai_with_student_context(client, store):
     client.app.state.coach = coach = FakeCoach()
-    react(client, store, JOB_CARDS[0], "save")
+    react(client, store, JOB_CARDS[0], "like")
+    assert client.put(f"/me/saved/{JOB_CARDS[0].id}", headers=headers()).status_code == 204   # 저장은 반응과 별개
     body = say(client, "안녕", "반가워요", "내 성향 알려 줘").json()
     assert body == {"reply": "AI 대답이에요.", "suggestions": ["더 알려 줘"], "by_ai": True}
     ctx, messages = coach.seen[0]

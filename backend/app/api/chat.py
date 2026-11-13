@@ -17,14 +17,14 @@ router = APIRouter(tags=["chat"])
 MAX_USER_CHARS = 300
 
 
-def build_context(content: ContentStore, index: JobIndex, vector: np.ndarray, n_reactions: int, reactions: list[dict]) -> dict:
-    """대화에 쓸 학생 기록. 닉네임·이메일은 넣지 않는다."""
+def build_context(content: ContentStore, index: JobIndex, vector: np.ndarray, n_reactions: int, saved_rows: list[dict]) -> dict:
+    """대화에 쓸 학생 기록. 닉네임·이메일은 넣지 않는다. saved_rows: FeedRepo.list_saved (최신 순)."""
     others = sorted((a for a in content.attributes if a.group != "interest" and vector[a.idx] > 0),
                     key=lambda a: -vector[a.idx])[:2]
     saved = []
-    for r in reactions:
-        card = content.card(r["card_id"])
-        if r["reaction"] == "save" and card is not None and card.title not in saved:
+    for s in saved_rows:
+        card = content.card(s["card_id"])
+        if card is not None and card.title not in saved:
             saved.append(card.title)
     jobs = [j for j in rank_jobs(content, index, vector, limit=5) if j["match"] is not None]
     return {
@@ -56,7 +56,7 @@ def chat(
 
     row = users.get_vector(user.id)
     vector = np.asarray(row["vector"] if row else [0.0] * N_DIM, dtype=np.float32)
-    ctx = build_context(content, index, vector, row["n_reactions"] if row else 0, feed.list_reactions(user.id))
+    ctx = build_context(content, index, vector, row["n_reactions"] if row else 0, feed.list_saved(user.id))
 
     if coach is not None:
         if not coach.allow(user.id):
