@@ -75,7 +75,7 @@
 
 ## 7. 배포 · 마무리
 - [~] Render 배포 설정, 환경 변수 등록 — `render.yaml` 추가, 서비스 생성과 환경 변수 등록 남음
-- [ ] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용
+- [x] 마이그레이션 `20261111010000_interest_survey.sql` · `20261111020000_saved_cards.sql` 적용 (2026-11-13, 5개 전부 적용 확인)
 - [ ] 배포 점검 `python -m scripts.check_deploy --api <Render 주소> --origin <프론트 주소>` 전부 O
 - [ ] 프론트와 API 계약 확정 (`/docs` Swagger 공유)
 - [ ] 맞춤 vs 무작위 반응률 비교 쿼리
