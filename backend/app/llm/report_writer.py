@@ -7,7 +7,7 @@ import logging
 from uuid import UUID
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from app.report import Report
 
@@ -68,6 +68,9 @@ class ReportWriter:
                 model=self._model, contents=build_prompt(report), config=self._config
             )
             text = clean(resp.text)
+        except errors.APIError as e:  # 504·429 등 서버 쪽 실패는 한 줄만 남긴다
+            log.warning("Gemini 리포트 문장 생성 실패, 점수 기반 문장을 사용: %s %s", e.code, e.status)
+            return None
         except Exception:
             log.warning("Gemini 리포트 문장 생성 실패, 점수 기반 문장을 사용", exc_info=True)
             return None

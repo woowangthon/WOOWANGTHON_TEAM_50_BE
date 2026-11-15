@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"   # 쉼표 구분
     content_reviewed_only: bool = False           # 운영에서는 true (검수된 카드만 노출)
     gemini_api_key: SecretStr = SecretStr("")     # 비어 있으면 리포트는 점수 기반 문장만 쓴다
-    gemini_model: str = "gemini-3.8-flash"
-    gemini_timeout_s: float = 8.0                 # 넘으면 점수 기반 문장으로 대체
+    gemini_model: str = "gemini-3.5-flash"           # 3.7·3.8-flash 는 2026-11 기준 504로 응답 안 함
+    gemini_timeout_s: float = 15.0                # 넘으면 점수 기반 문장으로 대체
 
     @property
     def cors_origin_list(self) -> list[str]:
