@@ -9,7 +9,7 @@ import logging
 from datetime import date, datetime
 from uuid import UUID
 
-from google.genai import types
+from google.genai import errors, types
 from pydantic import BaseModel, ValidationError
 
 from app.journey import KST
@@ -179,6 +179,9 @@ class Coach:
     def _generate(self, prompt: str, config: types.GenerateContentConfig) -> str | None:
         try:
             return self._client.models.generate_content(model=self._model, contents=prompt, config=config).text
+        except errors.APIError as e:  # 504·429 등 서버 쪽 실패는 한 줄만 남긴다
+            log.warning("Gemini 호출 실패, 기록 기반 답변을 사용: %s %s", e.code, e.status)
+            return None
         except Exception:
             log.warning("Gemini 호출 실패, 기록 기반 답변을 사용", exc_info=True)
             return None
